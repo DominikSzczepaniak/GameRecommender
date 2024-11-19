@@ -1,0 +1,25 @@
+User interacts with UI Service with Logging into steam/epic games/other platform accounts, gets recommendations, leaves a like / dislike for given recommendations 
+
+Event distribution class is looking at UI service and 
+a) for user logging first time into any platform assigns task to UserAnalyzer 
+b) for user clicking like/dislike for given recommendation assign task to MLUpdater
+
+UserAnalyzer reads played games giving higher values to games where more time has been played, then the query is given to MLService.
+
+MLUpdater updates user preferences based on his like/dislike. 
+
+2 Databases:
+a) users (register and login) and user preferences 
+b) ML data and precomputed stuff 
+
+use ?Redis? cache on b) and user preferences
+use cache that tends to keep longer more frequently occuring values hence games that are more popular are gonna be in cache longer than the others
+
+
+Most heavy tasks for ML should be calculated offline, not when user inserts his data. 
+
+
+When user is pinging MLUpdater run recalculation for some small part of database on docker container.
+
+
+Load balancer? 
