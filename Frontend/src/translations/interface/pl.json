@@ -1,0 +1,11 @@
+{
+    "gameCard":
+    {
+        "title": "Tytuł",
+        "description": "Opis",
+        "price": "Cena",
+        "platform": "Platforma",
+        "releaseDate": "Data wydania",
+        "publisher": "Wydawca"
+    }
+}
