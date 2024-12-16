@@ -11,8 +11,6 @@ function App() {
   return (
     <ThemeProvider defaultTheme="dark" storageKey="vite-ui-theme">
       <Navbar/>
-      <p className='text-red-300'>asdfasdfasdf</p>
-      <Button>musisz tego sluchac glosno</Button>
     </ThemeProvider>
   )
 }
