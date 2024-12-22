@@ -6,7 +6,7 @@ import { Button } from './components/ui/button'
 import './App.css'
 
 function App() {
-  const [count, setCount] = useState(0)
+  const [count, setCount] = useState(0);
 
   return (
     <ThemeProvider defaultTheme='dark' storageKey='vite-ui-theme'>
@@ -17,7 +17,7 @@ function App() {
         musisz tego sluchac glosno
       </Button>
     </ThemeProvider>
-  )
+  );
 }
 
-export default App
+export default App;
