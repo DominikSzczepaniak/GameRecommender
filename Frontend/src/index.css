@@ -66,8 +66,7 @@
   }
 }
 
-
-:root  {
+:root {
   --background: 267 54% 95%;
   --foreground: 267 5% 10%;
   --card: 267 50% 90%;
@@ -89,7 +88,7 @@
   --ring: 267 51% 65%;
   --radius: 0.75rem;
 }
-.dark  {
+.dark {
   --background: 267 50% 10%;
   --foreground: 267 5% 90%;
   --card: 267 50% 10%;

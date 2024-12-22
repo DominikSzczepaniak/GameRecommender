@@ -6,14 +6,14 @@ import { ThemeProvider } from '@/components/theme-provider';
 import './App.css';
 
 function App() {
-	const [count, setCount] = useState(0);
+  const [count, setCount] = useState(0);
 
-	return (
-		<ThemeProvider defaultTheme="dark" storageKey="vite-ui-theme">
-			<p className="text-red-300">asdfasdfasdf</p>
-			<Button>musisz tego sluchac glosno</Button>
-		</ThemeProvider>
-	);
+  return (
+    <ThemeProvider defaultTheme="dark" storageKey="vite-ui-theme">
+      <p className="text-red-300">asdfasdfasdf</p>
+      <Button>musisz tego sluchac glosno</Button>
+    </ThemeProvider>
+  );
 }
 
 export default App;
