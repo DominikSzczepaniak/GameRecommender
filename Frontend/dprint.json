@@ -2,7 +2,7 @@
   "typescript": {
     "indentWidth": 2,
     "useTabs": false,
-    "semiColons": "asi",
+    "semiColons": "always",
     "quoteStyle": "preferSingle",
     "jsx.quoteStyle": "preferSingle",
     "arrowFunction.useParentheses": "force",
