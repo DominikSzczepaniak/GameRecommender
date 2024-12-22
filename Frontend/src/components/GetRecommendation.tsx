@@ -3,49 +3,49 @@ import { GameCard, GameCardProps } from './GameCard';
 import { Select, SelectContent, SelectTrigger, SelectValue } from './ui/select';
 import { getLanguageFile } from '@/helpers/language';
 import { Button } from './ui/button';
+import { Card, CardContent, CardFooter } from './ui/card';
 
 interface GetRecommendationProps {
-    recommendationEngines: { name: string, likeFunction: () => void, dislikeFunction: () => void, askForRecommendation: (userID: number) => GameCardProps }[];
+    recommendationEngines: { name: string, likeFunction: (recommendationNumber: number) => void, dislikeFunction: (recommendationNumber: number) => void, askForRecommendations: (userID: number) => GameCardProps[] }[];
     userID: number;
 }
 
 export const GetRecommendation = (props: GetRecommendationProps) => { //TODO: CSS
-    const [visibleRecommendation, setVisibleRecommendation] = React.useState(false);
+    const [visibleRecommendations, setVisibleRecommendations] = React.useState(false);
     const [chosenRecommendationEngine, setChosenRecommendationEngine] = React.useState(-5);
-    const [recommendation, setRecommendation] = React.useState<GameCardProps | null>(null);
+    const [recommendations, setRecommendations] = React.useState<GameCardProps[] | null>(null);
     const userID = props.userID;
 
     const translations = getLanguageFile();
 
-    const askForRecommendation = () => {
-        setRecommendation(props.recommendationEngines[chosenRecommendationEngine].askForRecommendation(userID));
-        setVisibleRecommendation(true);
+    const askForRecommendations = () => {
+        setRecommendations(props.recommendationEngines[chosenRecommendationEngine].askForRecommendations(userID));
+        setVisibleRecommendations(true);
     }
 
-    const resetRecommendation = () => {
-        setVisibleRecommendation(false);
-        setRecommendation(null);
+    const recommendationLike = (recommendationNumber: number) => {
+        props.recommendationEngines[chosenRecommendationEngine].likeFunction(recommendationNumber);
     }
 
-    const recommendationLike = () => {
-        props.recommendationEngines[chosenRecommendationEngine].likeFunction();
-        resetRecommendation();
-    }
-
-    const recommendationDislike = () => {
-        props.recommendationEngines[chosenRecommendationEngine].dislikeFunction();
-        resetRecommendation();
+    const recommendationDislike = (recommendationNumber: number) => {
+        props.recommendationEngines[chosenRecommendationEngine].dislikeFunction(recommendationNumber);
     }
 
     return (
-        <div>
-            {(visibleRecommendation && recommendation !== null) ? (
-                <div>
-                    <button onClick={recommendationDislike}>Dislike</button>
-                    <GameCard {...recommendation as GameCardProps}></GameCard>
-                    <button onClick={recommendationLike}>Like</button>
-                </div>
-            ) : (
+        <div className='flex justify-center items-center'>
+            {(visibleRecommendations && recommendations !== null) ? (
+                recommendations.map((recommendation, index) => {
+                    return (<Card>
+                        <CardContent>
+                            <GameCard {...recommendation as GameCardProps}></GameCard>
+                        </CardContent>
+                        <CardFooter>
+                            <button onClick={() => recommendationDislike(index)}>Dislike</button>
+                            <button onClick={() => recommendationLike(index)}>Like</button>
+                        </CardFooter>
+                        </Card>)
+                }))
+             : (
                 <>
                     <Select>
                         <SelectTrigger>
@@ -57,7 +57,7 @@ export const GetRecommendation = (props: GetRecommendationProps) => { //TODO: CS
                             ))}
                         </SelectContent>
                     </Select>
-                    {chosenRecommendationEngine === -5 ? <></> : <Button onClick={askForRecommendation}>{translations.getRecommendation.getGame}</Button>}
+                    {chosenRecommendationEngine === -5 ? <></> : <Button onClick={askForRecommendations}>{translations.getRecommendation.getGame}</Button>}
                 </>
             )}
         </div>
