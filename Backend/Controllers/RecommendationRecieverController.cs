@@ -11,7 +11,7 @@ public class RecommendationRecieverController(IDockerRunner dockerRunner) : Cont
     {
         try
         {
-            var result = dockerRunner.GetRecommendations(userId, engineNumber);
+            var result = await dockerRunner.GetRecommendations(userId, engineNumber);
             return Ok(result);
         }
         catch (ArgumentException ex)
