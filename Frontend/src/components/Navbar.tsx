@@ -4,11 +4,11 @@ import { Avatar, AvatarFallback } from "@/components/ui/avatar"
 import { useLocation } from "react-router-dom";
 
 const Navbar = () => {
-  let [logged, setLogged] = useState(false)
-  let location = useLocation();
-  let path = location.pathname
+  const [logged, setLogged] = useState(false)
+  const location = useLocation();
+  const path = location.pathname
 
-  let excluded = path == "/login"
+  const excluded = path == "/login"
   
   const handleRedirection = (where: string) => {
     window.location.href = `/${where}`
