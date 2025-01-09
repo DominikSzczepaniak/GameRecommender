@@ -44,12 +44,13 @@ class FunkSVD():
         Specify latent_features if start_over == True, otherwise you can ignore that
         '''
         self.load_rating_matrix()
+        regularization = 0.1      # Regularization term to prevent overfitting
         user_matrix, games_matrix = [], []
         if start_over:
             user_matrix = np.random.normal(scale=1.0 / latent_features, size=(self.n_users, latent_features)) 
             games_matrix = np.random.normal(scale=1.0 / latent_features, size=(self.n_games, latent_features)) 
         else:  
-            user_matrix, games_matrix = load_model()
+            user_matrix, games_matrix = self.load_model()
             latent_features = games_matrix.shape[1]
 
         for epoch in range(num_epochs):
