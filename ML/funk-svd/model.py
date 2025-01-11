@@ -1,4 +1,4 @@
-from scipy.sparse import load_npz
+from scipy.sparse import load_npz, coo_matrix, vstack, save_npz
 import numpy as np 
 import os 
 import pandas as pd
@@ -156,7 +156,7 @@ class FunkSVD():
 
     def get_user_history(self, user_id):
         '''
-        parameters: user_id
+        parameters: user_id after mapping
         returns: list of indices of games in V that user has played in form AFTER mapping (to get original run self.reverse_app_index[app_id])
         '''
         if not hasattr(self, 'rating_matrix_csr'):
@@ -165,14 +165,23 @@ class FunkSVD():
         return played 
 
     def get_game_rating(self, app_id):
+        '''
+        parameters: app_id before mapping
+        returns: game rating - "Overwhelmingly Positive", "Very Positive", "Positive", "Mostly Positive", "Mixed", "Mostly Negative", "Negative", "Very Negative", "Overwhelmingly Negative"
+        '''
         if self.games is None:
             self.games = pd.read_csv('games.csv')
+        app_id = self.app_index[app_id]
         result = self.games.loc[self.games['app_id'] == app_id, 'rating']
         if result.empty:
             return None  
         return result.iloc[0]
 
     def recommend(self, user_id, amount):
+        '''
+        parameters: user_id after mapping, amount of games to recommend
+        returns: list of recommended games in form of game data (app_id, name, genres, etc.)
+        '''
         assert type(user_id) == int
         user_matrix, games_matrix = self.load_model()
         user_matrix = torch.tensor(user_matrix)
@@ -205,6 +214,10 @@ class FunkSVD():
         # return non_interacted_ratings[:amount]
 
     def get_game_data(self, app_id):
+        '''
+        parameters: app_id - after mapping
+        returns: game data (app_id, name, genres, etc.)
+        '''
         if self.games is None:
             self.games = pd.read_csv('games.csv')
         original_app_id = self.reverse_app_index[app_id]
@@ -215,7 +228,26 @@ class FunkSVD():
     
     def score_game(self, user_id, app_id, score):
         '''
-        parameters: user_id, app_id, score
+        parameters: user_id, app_id, score (0/1)
         returns: None
         '''
-        pass #TODO set rating_matrix_sparse[user_id, app_id] = score
+        assert score == 1 or score == 0
+        if not hasattr(self, 'rating_matrix_csr'):
+            self.load_rating_matrix()
+
+        new_row_indices = [self.user_index[user_id]]
+        new_col_indices = [self.app_index[app_id]]
+        new_data = score 
+
+        new_rating_matrix = coo_matrix((new_data, (new_row_indices, new_col_indices)), shape=rating_matrix_sparse.shape)
+
+        rating_matrix_sparse = vstack([rating_matrix_sparse, new_rating_matrix])
+        save_npz('rating_matrix_sparse.npz', rating_matrix_sparse)
+
+class Testing():
+    def __init__(self):
+        self.model = FunkSVD('rating_matrix_sparse.npz')
+
+    def ask_for_recommendation(self, user_id, amount):
+        return self.model.recommend(user_id, amount)
+
