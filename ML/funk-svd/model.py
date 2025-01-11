@@ -2,12 +2,17 @@ from scipy.sparse import load_npz
 import numpy as np 
 import os 
 import pandas as pd
+from tqdm import tqdm
+import torch
+import random
 
 class FunkSVD():
-    def __init__(self, n_games, n_users, save_dir='model_checkpoint'):
+    def __init__(self, rating_matrix_path, save_dir='model_checkpoint'):
         self.save_dir = save_dir
-        self.n_games = n_games 
-        self.n_users = n_users
+        self.rating_matrix_path = rating_matrix_path
+        self.games = None 
+        self.users = None 
+        self.load_mappings() #should be cached or smth - takes too long to laod
         os.makedirs(self.save_dir, exist_ok=True)
     
     def save_model(self, user_matrix, games_matrix):
@@ -29,22 +34,39 @@ class FunkSVD():
             games_matrix = np.load(games_path)
             return user_matrix, games_matrix
         else:
-            raise Exception()
+            raise Exception("Model files not found.")
+        
+    def load_mappings(self):
+        '''
+        Loads mappings for user_id and app_id to index and reverse mappings
+        '''
+        if self.games is None:
+            games = pd.read_csv('games.csv')
+            self.games = games
+        if self.users is None:
+            users = pd.read_csv('users.csv')
+            self.users = users
+        unique_userid = users['user_id'].unique()
+        unique_appid = games['app_id'].unique()
 
-    def load_rating_matrix(self, rating_matrix_path):
+        self.user_index = {user_id: idx for idx, user_id in enumerate(unique_userid)}
+        self.app_index = {app_id: idx for idx, app_id in enumerate(unique_appid)}
+        self.reverse_user_index = {idx: user_id for idx, user_id in enumerate(unique_userid)}
+        self.reverse_app_index = {idx: app_id for idx, app_id in enumerate(unique_appid)}
+
+    def load_rating_matrix(self):
         '''
         Load full 2d rating matrix of initial rating (0/1) for every user-game pair that is not null
         '''
-        self.rating_matrix_sparse = load_npz(rating_matrix_path)
-        self.rating_matrix_csr = rating_matrix_path.tocsr()
+        self.rating_matrix_sparse = load_npz(self.rating_matrix_path)
+        self.rating_matrix_csr = self.rating_matrix_sparse.tocsr()
         self.n_users, self.n_games = self.rating_matrix_csr.shape 
 
-    def train(self, learning_rate=0.001, num_epochs=50, save_freq=1, start_over=False, latent_features=10):
+    def train(self, learning_rate=0.001, num_epochs=50, regularization = 0.1, save_freq=1, start_over=False, latent_features=10):
         '''
         Specify latent_features if start_over == True, otherwise you can ignore that
         '''
         self.load_rating_matrix()
-        regularization = 0.1      # Regularization term to prevent overfitting
         user_matrix, games_matrix = [], []
         if start_over:
             user_matrix = np.random.normal(scale=1.0 / latent_features, size=(self.n_users, latent_features)) 
@@ -55,7 +77,11 @@ class FunkSVD():
 
         for epoch in range(num_epochs):
             total_error = 0
-            for user_idx, game_idx, rating in zip(self.rating_matrix_sparse.row, self.rating_matrix_sparse.col, self.rating_matrix_sparse.data):
+            loop = tqdm(
+                zip(self.rating_matrix_sparse.row, self.rating_matrix_sparse.col, self.rating_matrix_sparse.data),
+                total=len(self.rating_matrix_sparse.data),
+            )
+            for user_idx, game_idx, rating in loop:
                 prediction = np.dot(user_matrix[user_idx], games_matrix[game_idx])
                 error = rating - prediction
                 
@@ -64,11 +90,11 @@ class FunkSVD():
                 
                 total_error += error ** 2
             
-            print(f"Epoch {epoch + 1}/{num_epochs}, Total Error: {total_error:.4f}")
+            print(f"Epoch {epoch + 1}/{num_epochs}, Total Error: {total_error:.4f}, accuracy: {1 - total_error / len(self.rating_matrix_sparse.data):.4f}")
             if((epoch+1) % save_freq == 0):
                 self.save_model(user_matrix, games_matrix)
 
-    def score_rating(self, rating_name):
+    def score_rating(self, rating_name): #should be cached - app_id -> rating, takes too long
         if rating_name == 'Overwhelmingly Positive':
             return 1.0 
         elif rating_name == 'Very Positive':
@@ -98,8 +124,9 @@ class FunkSVD():
         pass #TODO api call
 
     def get_game_rating(self, app_id):
-        games = pd.read_csv('games.csv')
-        result = games.loc[games['app_id'] == app_id, 'rating']
+        if self.games is None:
+            self.games = pd.read_csv('games.csv')
+        result = self.games.loc[self.games['app_id'] == app_id, 'rating']
         if result.empty:
             return None  
         return result.iloc[0]
@@ -107,21 +134,47 @@ class FunkSVD():
     def recommend(self, user_id, amount):
         assert type(user_id) == int
         user_matrix, games_matrix = self.load_model()
-
-        if user_id not in user_matrix: #??
-            raise Exception 
+        user_matrix = torch.tensor(user_matrix)
+        games_matrix = torch.tensor(games_matrix)
+        self.n_games = games_matrix.shape[0]
+        self.n_users = user_matrix.shape[0]
 
         user_vector = user_matrix[user_id, :]
-        predicted_ratings = np.dot(user_vector, games_matrix)
+        predicted_ratings = torch.matmul(user_vector, games_matrix.T).numpy()
 
-        played_games = set(get_user_history(user_id))
+        played_games = set()#set(self.get_user_history(user_id))
         all_games = set(range(self.n_games))
         non_interacted_games = list(all_games - played_games)
 
-        score_formula = lambda item_id: predicted_ratings[item_id] * self.score_rating(self.get_game_rating(item_id))
+        score_formula = lambda item_id: predicted_ratings[item_id] #* self.score_rating(self.get_game_rating(item_id))
+        perfect_games = [(item_id, score_formula(item_id)) for item_id in non_interacted_games if score_formula(item_id) == 1]
 
-        non_interacted_ratings = [(item_id, score_formula(item_id)) for item_id in non_interacted_items]
-
+        if len(perfect_games) >= amount:
+            return random.choice(perfect_games, amount)
+        non_interacted_ratings = [(item_id, score_formula(item_id)) for item_id in non_interacted_games]
         non_interacted_ratings.sort(key=lambda x: x[1], reverse=True)
-        
-        return non_interacted_ratings[:top_k]
+
+        result = []
+        for game in non_interacted_ratings:
+            if len(result) == amount:
+                break
+            if game[0] not in played_games:
+                result.append(self.get_game_data(game[0]))
+        return result 
+        # return non_interacted_ratings[:amount]
+
+    def get_game_data(self, app_id):
+        if self.games is None:
+            self.games = pd.read_csv('games.csv')
+        original_app_id = self.reverse_app_index[app_id]
+        result = self.games.loc[self.games['app_id'] == original_app_id]
+        if result.empty:
+            return None  
+        return result.iloc[0]
+
+if __name__ == '__main__':
+    model = FunkSVD('rating_matrix_sparse.npz')
+    # model.train(num_epochs=300)
+    print(model.recommend(1, 10))
+    
+
