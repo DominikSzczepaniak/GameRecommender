@@ -250,4 +250,3 @@ class Testing():
 
     def ask_for_recommendation(self, user_id, amount):
         return self.model.recommend(user_id, amount)
-
