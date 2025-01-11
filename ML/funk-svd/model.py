@@ -94,6 +94,44 @@ class FunkSVD():
             if((epoch+1) % save_freq == 0):
                 self.save_model(user_matrix, games_matrix)
 
+    def train_one_user(self, user_id, learning_rate=0.001, num_epochs=50, regularization = 0.1, save_freq=1, start_over=False, latent_features=10):
+        '''
+        Train only a specific user's vector in the user matrix.
+        
+        Parameters:
+        user_id : int - the id of the user to be trained
+        learning_rate : float - the step size for gradient descent
+        num_epochs : int - number of epochs to run for this user
+        regularization : float - regularization parameter for weight decay
+        latent_features : int - number of latent features (if starting from scratch)
+        '''
+        self.load_rating_matrix()
+        user_idx = self.user_index[user_id]
+        
+        user_matrix, games_matrix = self.load_model()
+        if user_matrix.shape[1] != latent_features:
+            raise ValueError("Latent feature dimension mismatch between loaded model and specified value.")
+        
+        user_vector = user_matrix[user_idx]
+
+        for epoch in range(num_epochs):
+            total_error = 0
+            user_ratings = self.rating_matrix_csr[user_idx].tocoo()
+
+            for game_idx, rating in zip(user_ratings.col, user_ratings.data):
+                prediction = np.dot(user_vector, games_matrix[game_idx])
+                error = rating - prediction
+
+                user_vector += learning_rate * (error * games_matrix[game_idx] - regularization * user_vector)
+                games_matrix[game_idx] += learning_rate * (error * user_vector - regularization * games_matrix[game_idx])
+
+                total_error += error ** 2
+
+            print(f"User {user_id}, Epoch {epoch + 1}/{num_epochs}, Total Error: {total_error:.4f}")
+
+        user_matrix[user_idx] = user_vector
+        self.save_model(user_matrix, games_matrix)
+
     def score_rating(self, rating_name): #should be cached - app_id -> rating, takes too long
         if rating_name == 'Overwhelmingly Positive':
             return 1.0 
