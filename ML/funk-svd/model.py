@@ -157,9 +157,12 @@ class FunkSVD():
     def get_user_history(self, user_id):
         '''
         parameters: user_id
-        returns: list of indices of games in V that user has played
+        returns: list of indices of games in V that user has played in form AFTER mapping (to get original run self.reverse_app_index[app_id])
         '''
-        pass #TODO api call
+        if not hasattr(self, 'rating_matrix_csr'):
+            self.load_rating_matrix()
+        played = self.rating_matrix_csr[user_id].nonzero()[1]
+        return played 
 
     def get_game_rating(self, app_id):
         if self.games is None:
@@ -180,7 +183,7 @@ class FunkSVD():
         user_vector = user_matrix[user_id, :]
         predicted_ratings = torch.matmul(user_vector, games_matrix.T).numpy()
 
-        played_games = set()#set(self.get_user_history(user_id))
+        played_games = set(self.get_user_history(user_id))
         all_games = set(range(self.n_games))
         non_interacted_games = list(all_games - played_games)
 
@@ -209,10 +212,10 @@ class FunkSVD():
         if result.empty:
             return None  
         return result.iloc[0]
-
-if __name__ == '__main__':
-    model = FunkSVD('rating_matrix_sparse.npz')
-    # model.train(num_epochs=300)
-    print(model.recommend(1, 10))
     
-
+    def score_game(self, user_id, app_id, score):
+        '''
+        parameters: user_id, app_id, score
+        returns: None
+        '''
+        pass #TODO set rating_matrix_sparse[user_id, app_id] = score
