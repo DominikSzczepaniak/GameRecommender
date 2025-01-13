@@ -1,3 +1,6 @@
+#TODO mappings are bugged
+
+
 from scipy.sparse import load_npz, coo_matrix, vstack, save_npz
 import numpy as np 
 import os 
@@ -14,53 +17,46 @@ class FunkSVD():
         self.users = None 
         self.load_mappings() #should be cached or smth - takes too long to laod
         os.makedirs(self.save_dir, exist_ok=True)
+        self.load_recommendations_count()
+
+
+    def recommend(self, user_id, amount):
+        '''
+        parameters: user_id after mapping, amount of games to recommend
+        returns: list of recommended games in form of game data (app_id, name, genres, etc.)
+        '''
+        assert type(user_id) == int
+        user_matrix, games_matrix = self.load_model()
+        user_matrix = torch.tensor(user_matrix)
+        games_matrix = torch.tensor(games_matrix)
+        self.n_games = games_matrix.shape[0]
+        self.n_users = user_matrix.shape[0]
+
+        user_vector = user_matrix[user_id, :]
+        predicted_ratings = torch.matmul(user_vector, games_matrix.T).numpy()
+
+        played_games = set(self.get_user_history(user_id))
+        all_games = set(range(self.n_games))
+        non_interacted_games = list(all_games - played_games)
+
+        score_formula = lambda item_id: predicted_ratings[item_id] #* self.score_recommendation_amount(self.count_recommendations[self.reverse_app_index[item_id]]) #* self.score_rating(self.get_game_rating(item_id))
+        perfect_games = [(item_id, score_formula(item_id)) for item_id in non_interacted_games if score_formula(item_id) == 1]
+
+        if len(perfect_games) >= amount:
+            return random.choice(perfect_games, amount)
+        non_interacted_ratings = [(item_id, score_formula(item_id)) for item_id in non_interacted_games]
+        non_interacted_ratings.sort(key=lambda x: x[1], reverse=True)
+
+        result = []
+        for game in non_interacted_ratings:
+            if len(result) == amount:
+                break
+            if game[0] not in played_games:
+                result.append(self.get_game_data(game[0]))
+        return result 
+        # return non_interacted_ratings[:amount]
+
     
-    def save_model(self, user_matrix, games_matrix):
-        '''
-        Save user and games matrices for later loading
-        '''
-        np.save(os.path.join(self.save_dir, 'user_matrix.npy'), user_matrix)
-        np.save(os.path.join(self.save_dir, 'games_matrix.npy'), games_matrix)
-
-    def load_model(self):
-        '''
-        Load calculated user and games matrices from trained model
-        '''
-        user_path = os.path.join(self.save_dir, 'user_matrix.npy')
-        games_path = os.path.join(self.save_dir, 'games_matrix.npy')
-
-        if os.path.exists(user_path) and os.path.exists(games_path):
-            user_matrix = np.load(user_path)
-            games_matrix = np.load(games_path)
-            return user_matrix, games_matrix
-        else:
-            raise Exception("Model files not found.")
-        
-    def load_mappings(self):
-        '''
-        Loads mappings for user_id and app_id to index and reverse mappings
-        '''
-        if self.games is None:
-            games = pd.read_csv('games.csv')
-            self.games = games
-        if self.users is None:
-            users = pd.read_csv('users.csv')
-            self.users = users
-        unique_userid = users['user_id'].unique()
-        unique_appid = games['app_id'].unique()
-
-        self.user_index = {user_id: idx for idx, user_id in enumerate(unique_userid)}
-        self.app_index = {app_id: idx for idx, app_id in enumerate(unique_appid)}
-        self.reverse_user_index = {idx: user_id for idx, user_id in enumerate(unique_userid)}
-        self.reverse_app_index = {idx: app_id for idx, app_id in enumerate(unique_appid)}
-
-    def load_rating_matrix(self):
-        '''
-        Load full 2d rating matrix of initial rating (0/1) for every user-game pair that is not null
-        '''
-        self.rating_matrix_sparse = load_npz(self.rating_matrix_path)
-        self.rating_matrix_csr = self.rating_matrix_sparse.tocsr()
-        self.n_users, self.n_games = self.rating_matrix_csr.shape 
 
     def train(self, learning_rate=0.001, num_epochs=50, regularization = 0.1, save_freq=1, start_over=False, latent_features=10):
         '''
@@ -131,28 +127,71 @@ class FunkSVD():
 
         user_matrix[user_idx] = user_vector
         self.save_model(user_matrix, games_matrix)
+    
+    def save_model(self, user_matrix, games_matrix):
+        '''
+        Save user and games matrices for later loading
+        '''
+        np.save(os.path.join(self.save_dir, 'user_matrix.npy'), user_matrix)
+        np.save(os.path.join(self.save_dir, 'games_matrix.npy'), games_matrix)
 
-    def score_rating(self, rating_name): #should be cached - app_id -> rating, takes too long
-        if rating_name == 'Overwhelmingly Positive':
-            return 1.0 
-        elif rating_name == 'Very Positive':
-            return 0.98
-        elif rating_name == 'Positive':
-            return 0.95
-        elif rating_name == 'Mostly Positive':
-            return 0.9
-        elif rating_name == 'Mixed':
-            return 0.85
-        elif rating_name == 'Mostly Negative':
-            return 0.8
-        elif rating_name == 'Negative':
-            return 0.7
-        elif rating_name == 'Very Negative':
-            return 0.6
-        elif rating_name == 'Overwhelmingly Negative':
-            return 0.5
+    def load_model(self):
+        '''
+        Load calculated user and games matrices from trained model
+        '''
+        user_path = os.path.join(self.save_dir, 'user_matrix.npy')
+        games_path = os.path.join(self.save_dir, 'games_matrix.npy')
+
+        if os.path.exists(user_path) and os.path.exists(games_path):
+            user_matrix = np.load(user_path)
+            games_matrix = np.load(games_path)
+            return user_matrix, games_matrix
         else:
-            return 0 #if app_id not found or any other error just ignore the game
+            raise Exception("Model files not found.")
+        
+    def load_mappings(self):
+        '''
+        Loads mappings for user_id and app_id to index and reverse mappings
+        '''
+        if self.games is None:
+            games = pd.read_csv('games.csv')
+            self.games = games
+        if self.users is None:
+            users = pd.read_csv('users.csv')
+            self.users = users
+        unique_userid = users['user_id'].unique()
+        unique_appid = games['app_id'].unique()
+
+        self.user_index = {user_id: idx for idx, user_id in enumerate(unique_userid)}
+        self.app_index = {app_id: idx for idx, app_id in enumerate(unique_appid)}
+        self.reverse_user_index = {idx: user_id for idx, user_id in enumerate(unique_userid)}
+        self.reverse_app_index = {idx: app_id for idx, app_id in enumerate(unique_appid)}
+
+    def load_rating_matrix(self):
+        '''
+        Load full 2d rating matrix of initial rating (0/1) for every user-game pair that is not null
+        '''
+        self.rating_matrix_sparse = load_npz(self.rating_matrix_path)
+        self.rating_matrix_csr = self.rating_matrix_sparse.tocsr()
+        self.n_users, self.n_games = self.rating_matrix_csr.shape 
+
+    def load_recommendations_count(self):
+        if os.path.exists('count_recommendations.npy'):
+            self.count_recommendations = np.load('count_recommendations.npy', allow_pickle=True).item()
+        else:
+            self.count_recommendations_func()
+            self.load_recommendations_count()
+
+    def count_recommendations_func(self):
+        self.recommendations = pd.read_csv('recommendations.csv')
+        self.count_recommendations = dict()
+        for _, line in self.recommendations.iterrows():
+            app_id = line['app_id']
+            if app_id in self.count_recommendations:
+                self.count_recommendations[app_id] += 1
+            else:
+                self.count_recommendations[app_id] = 1
+        np.save('count_recommendations.npy', self.count_recommendations)
 
     def get_user_history(self, user_id):
         '''
@@ -177,41 +216,15 @@ class FunkSVD():
             return None  
         return result.iloc[0]
 
-    def recommend(self, user_id, amount):
+    def get_recommendation_amount(self, app_id):
         '''
-        parameters: user_id after mapping, amount of games to recommend
-        returns: list of recommended games in form of game data (app_id, name, genres, etc.)
+        parameters: app_id - after mapping
+        returns: amount of games to recommend
         '''
-        assert type(user_id) == int
-        user_matrix, games_matrix = self.load_model()
-        user_matrix = torch.tensor(user_matrix)
-        games_matrix = torch.tensor(games_matrix)
-        self.n_games = games_matrix.shape[0]
-        self.n_users = user_matrix.shape[0]
-
-        user_vector = user_matrix[user_id, :]
-        predicted_ratings = torch.matmul(user_vector, games_matrix.T).numpy()
-
-        played_games = set(self.get_user_history(user_id))
-        all_games = set(range(self.n_games))
-        non_interacted_games = list(all_games - played_games)
-
-        score_formula = lambda item_id: predicted_ratings[item_id] #* self.score_rating(self.get_game_rating(item_id))
-        perfect_games = [(item_id, score_formula(item_id)) for item_id in non_interacted_games if score_formula(item_id) == 1]
-
-        if len(perfect_games) >= amount:
-            return random.choice(perfect_games, amount)
-        non_interacted_ratings = [(item_id, score_formula(item_id)) for item_id in non_interacted_games]
-        non_interacted_ratings.sort(key=lambda x: x[1], reverse=True)
-
-        result = []
-        for game in non_interacted_ratings:
-            if len(result) == amount:
-                break
-            if game[0] not in played_games:
-                result.append(self.get_game_data(game[0]))
-        return result 
-        # return non_interacted_ratings[:amount]
+        if not hasattr(self, 'recommendations'):
+            self.recommendations = pd.read_csv('recommendations.csv')
+        count = self.recommendations[self.recommendations['app_id'] == app_id].shape[0] #cache
+        return count 
 
     def get_game_data(self, app_id):
         '''
@@ -224,7 +237,7 @@ class FunkSVD():
         result = self.games.loc[self.games['app_id'] == original_app_id]
         if result.empty:
             return None  
-        return result.iloc[0]
+        return result.iloc[0]['title']
     
     def score_game(self, user_id, app_id, score):
         '''
@@ -243,6 +256,48 @@ class FunkSVD():
 
         rating_matrix_sparse = vstack([rating_matrix_sparse, new_rating_matrix])
         save_npz('rating_matrix_sparse.npz', rating_matrix_sparse)
+    
+    def score_rating(self, rating_name): #should be cached - app_id -> rating, takes too long
+        if rating_name == 'Overwhelmingly Positive':
+            return 1.0 
+        elif rating_name == 'Very Positive':
+            return 0.98
+        elif rating_name == 'Positive':
+            return 0.95
+        elif rating_name == 'Mostly Positive':
+            return 0.9
+        elif rating_name == 'Mixed':
+            return 0.85
+        elif rating_name == 'Mostly Negative':
+            return 0.8
+        elif rating_name == 'Negative':
+            return 0.7
+        elif rating_name == 'Very Negative':
+            return 0.6
+        elif rating_name == 'Overwhelmingly Negative':
+            return 0.5
+        else:
+            return 0 #if app_id not found or any other error just ignore the game
+        
+    def score_recommendation_amount(self, recommendation_count):
+        if recommendation_count >= 10000:
+            return 1.1
+        elif recommendation_count >= 5000:
+            return 1.05 
+        elif recommendation_count >= 1000:
+            return 1.04
+        elif recommendation_count >= 750:
+            return 1.02
+        elif recommendation_count >= 500:
+            return 1.01
+        elif recommendation_count >= 300:
+            return 0.98
+        elif recommendation_count >= 100:
+            return 0.95
+        elif recommendation_count >= 50:
+            return 0.9
+        else:
+            return 0.7
 
 class Testing():
     def __init__(self):
@@ -250,3 +305,7 @@ class Testing():
 
     def ask_for_recommendation(self, user_id, amount):
         return self.model.recommend(user_id, amount)
+    
+print(Testing().ask_for_recommendation(13022991, 10))
+# abc = FunkSVD('rating_matrix_sparse.npz')
+# print(abc.reverse_app_index[abc.get_user_history(1335369)[0]])
