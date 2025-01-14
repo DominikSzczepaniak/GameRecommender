@@ -1,11 +1,28 @@
 from recmetrics import novelty, prediction_coverage, catalog_coverage, _ark, _apk, mark, mapk, personalization
-
+from typing import List
+import numpy as np
 #diversity = catalog_coverage 
 #novelty = novelty
 #coverage popularity = prediction coverage
 
+
 def NDCG(predicted: List[List], actual: List[List], k: int):
-    pass
+    '''source: https://en.wikipedia.org/wiki/Discounted_cumulative_gain'''
+    
+    def ndcg_at(predicted_at: List[int], actual_at: List[int]):
+        relevance = [1 if game in actual_at else 0 for game in predicted_at[:k]]
+        ideal_relevance = sorted(relevance)
+
+        DCG = np.sum([rel / np.log2(idx + 2) for idx, rel in enumerate(relevance)])
+        ideal_DCG = np.sum([rel / np.log2(idx + 2) for idx, rel in enumerate(ideal_relevance)])
+        epsilon = 1e-15
+        
+        return DCG / ideal_DCG if ideal_DCG > 0 else 0
+    
+    ndcg_scores = [ndcg_at(predicted[i], actual[i]) for i in range(len(predicted))]
+
+    return np.mean(ndcg_scores)
+    
 
 def test_model(predicted: List[List], actual: List[List], k: int, user_amount: int, recommendation_size: int, all_items: List):
     novelty_score = novelty(predicted, actual)
