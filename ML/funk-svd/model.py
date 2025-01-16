@@ -8,6 +8,7 @@ import pandas as pd
 from tqdm import tqdm
 import torch
 import random
+import joblib
 
 class FunkSVD():
     def __init__(self, rating_matrix_path, save_dir='model_checkpoint'):
@@ -15,7 +16,7 @@ class FunkSVD():
         self.rating_matrix_path = rating_matrix_path
         self.games = None 
         self.users = None 
-        self.load_mappings() #should be cached or smth - takes too long to laod
+        self.load_mappings()
         os.makedirs(self.save_dir, exist_ok=True)
         self.load_recommendations_count()
 
@@ -151,21 +152,44 @@ class FunkSVD():
         
     def load_mappings(self):
         '''
-        Loads mappings for user_id and app_id to index and reverse mappings
+        Loads mappings for user_id and app_id to index and reverse mappings. 
+        Saves the mappings to files if they don't exist using joblib for serialization.
         '''
-        if self.games is None:
-            games = pd.read_csv('games.csv')
-            self.games = games
-        if self.users is None:
-            users = pd.read_csv('users.csv')
-            self.users = users
-        unique_userid = users['user_id'].unique()
-        unique_appid = games['app_id'].unique()
+        mapping_dir = 'mappings'
+        user_index_file = os.path.join(mapping_dir, 'user_index.joblib')
+        app_index_file = os.path.join(mapping_dir, 'app_index.joblib')
+        reverse_user_index_file = os.path.join(mapping_dir, 'reverse_user_index.joblib')
+        reverse_app_index_file = os.path.join(mapping_dir, 'reverse_app_index.joblib')
 
-        self.user_index = {user_id: idx for idx, user_id in enumerate(unique_userid)}
-        self.app_index = {app_id: idx for idx, app_id in enumerate(unique_appid)}
-        self.reverse_user_index = {idx: user_id for idx, user_id in enumerate(unique_userid)}
-        self.reverse_app_index = {idx: app_id for idx, app_id in enumerate(unique_appid)}
+        os.makedirs(mapping_dir, exist_ok=True)
+
+        if (os.path.exists(user_index_file) and 
+            os.path.exists(app_index_file) and 
+            os.path.exists(reverse_user_index_file) and 
+            os.path.exists(reverse_app_index_file)):
+            self.user_index = joblib.load(user_index_file)
+            self.app_index = joblib.load(app_index_file)
+            self.reverse_user_index = joblib.load(reverse_user_index_file)
+            self.reverse_app_index = joblib.load(reverse_app_index_file)
+        else:
+            if self.games is None:
+                self.games = pd.read_csv('../games.csv')
+            if self.users is None:
+                self.users = pd.read_csv('../users.csv')
+
+            unique_userid = self.users['user_id'].unique()
+            unique_appid = self.games['app_id'].unique()
+
+            self.user_index = {user_id: idx for idx, user_id in enumerate(unique_userid)}
+            self.app_index = {app_id: idx for idx, app_id in enumerate(unique_appid)}
+            self.reverse_user_index = {idx: user_id for idx, user_id in enumerate(unique_userid)}
+            self.reverse_app_index = {idx: app_id for idx, app_id in enumerate(unique_appid)}
+
+            joblib.dump(self.user_index, user_index_file)
+            joblib.dump(self.app_index, app_index_file)
+            joblib.dump(self.reverse_user_index, reverse_user_index_file)
+            joblib.dump(self.reverse_app_index, reverse_app_index_file)
+
 
     def load_rating_matrix(self):
         '''
@@ -301,11 +325,13 @@ class FunkSVD():
 
 class Testing():
     def __init__(self):
-        self.model = FunkSVD('rating_matrix_sparse.npz')
+        self.model = FunkSVD('../train_and_test.npz')
 
     def ask_for_recommendation(self, user_id, amount):
         return self.model.recommend(user_id, amount)
     
-print(Testing().ask_for_recommendation(13022991, 10))
+abc = FunkSVD('../train_and_test.npz')
+abc.train(learning_rate=0.001, num_epochs=50, regularization=0.1, save_freq=1, start_over=True, latent_features=15)
+# print(Testing().ask_for_recommendation(13022991, 10))
 # abc = FunkSVD('rating_matrix_sparse.npz')
 # print(abc.reverse_app_index[abc.get_user_history(1335369)[0]])
