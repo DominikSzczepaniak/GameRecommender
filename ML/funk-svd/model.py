@@ -11,11 +11,13 @@ import random
 import joblib
 
 class FunkSVD():
-    def __init__(self, rating_matrix_path, save_dir='model_checkpoint'):
+    def __init__(self, rating_matrix_path, data_directory, save_dir='model_checkpoint'):
         self.save_dir = save_dir
         self.rating_matrix_path = rating_matrix_path
+        self.data_directory = data_directory
         self.games = None 
         self.users = None 
+        self.base_dir = os.path.dirname(os.path.abspath(__file__))
         self.load_mappings()
         os.makedirs(self.save_dir, exist_ok=True)
         self.load_recommendations_count()
@@ -133,15 +135,15 @@ class FunkSVD():
         '''
         Save user and games matrices for later loading
         '''
-        np.save(os.path.join(self.save_dir, 'user_matrix.npy'), user_matrix)
-        np.save(os.path.join(self.save_dir, 'games_matrix.npy'), games_matrix)
+        np.save(os.path.join(self.base_dir, self.save_dir, 'user_matrix.npy'), user_matrix)
+        np.save(os.path.join(self.base_dir, self.save_dir, 'games_matrix.npy'), games_matrix)
 
     def load_model(self):
         '''
         Load calculated user and games matrices from trained model
         '''
-        user_path = os.path.join(self.save_dir, 'user_matrix.npy')
-        games_path = os.path.join(self.save_dir, 'games_matrix.npy')
+        user_path = os.path.join(self.base_dir, self.save_dir, 'user_matrix.npy')
+        games_path = os.path.join(self.base_dir, self.save_dir, 'games_matrix.npy')
 
         if os.path.exists(user_path) and os.path.exists(games_path):
             user_matrix = np.load(user_path)
@@ -173,9 +175,9 @@ class FunkSVD():
             self.reverse_app_index = joblib.load(reverse_app_index_file)
         else:
             if self.games is None:
-                self.games = pd.read_csv('../games.csv')
+                self.games = pd.read_csv(os.path.join(self.data_directory, 'games.csv'))
             if self.users is None:
-                self.users = pd.read_csv('../users.csv')
+                self.users = pd.read_csv(os.path.join(self.data_directory, 'users.csv'))
 
             unique_userid = self.users['user_id'].unique()
             unique_appid = self.games['app_id'].unique()
@@ -200,14 +202,16 @@ class FunkSVD():
         self.n_users, self.n_games = self.rating_matrix_csr.shape 
 
     def load_recommendations_count(self):
-        if os.path.exists('count_recommendations.npy'):
-            self.count_recommendations = np.load('count_recommendations.npy', allow_pickle=True).item()
+        file_path = os.path.join(self.base_dir, 'count_recommendations.npy')
+        if os.path.exists(file_path):
+            self.count_recommendations = np.load(file_path, allow_pickle=True).item()
         else:
             self.count_recommendations_func()
             self.load_recommendations_count()
 
     def count_recommendations_func(self):
-        self.recommendations = pd.read_csv('../recommendations.csv')
+        recommendation_file_path = os.path.join(self.data_directory, 'recommendations.csv')
+        self.recommendations = pd.read_csv(recommendation_file_path)
         self.count_recommendations = dict()
         for _, line in self.recommendations.iterrows():
             app_id = line['app_id']
@@ -215,7 +219,8 @@ class FunkSVD():
                 self.count_recommendations[app_id] += 1
             else:
                 self.count_recommendations[app_id] = 1
-        np.save('count_recommendations.npy', self.count_recommendations)
+        file_path = os.path.join(self.base_dir, 'count_recommendations.npy')
+        np.save(file_path, self.count_recommendations)
 
     def get_user_history(self, user_id):
         '''
@@ -233,7 +238,7 @@ class FunkSVD():
         returns: game rating - "Overwhelmingly Positive", "Very Positive", "Positive", "Mostly Positive", "Mixed", "Mostly Negative", "Negative", "Very Negative", "Overwhelmingly Negative"
         '''
         if self.games is None:
-            self.games = pd.read_csv('../games.csv')
+            self.games = pd.read_csv(os.path.join(self.data_directory, 'games.csv'))
         app_id = self.app_index[app_id]
         result = self.games.loc[self.games['app_id'] == app_id, 'rating']
         if result.empty:
@@ -246,7 +251,7 @@ class FunkSVD():
         returns: amount of games to recommend
         '''
         if not hasattr(self, 'recommendations'):
-            self.recommendations = pd.read_csv('../recommendations.csv')
+            self.recommendations = pd.read_csv(os.path.join(self.data_directory, 'recommendations.csv'))
         count = self.recommendations[self.recommendations['app_id'] == app_id].shape[0] #cache
         return count 
 
@@ -256,7 +261,7 @@ class FunkSVD():
         returns: game data (app_id, name, genres, etc.)
         '''
         if self.games is None:
-            self.games = pd.read_csv('../games.csv')
+            self.games = pd.read_csv(os.path.join(self.data_directory, 'games.csv'))
         original_app_id = self.reverse_app_index[app_id]
         result = self.games.loc[self.games['app_id'] == original_app_id]
         if result.empty:
@@ -279,7 +284,7 @@ class FunkSVD():
         new_rating_matrix = coo_matrix((new_data, (new_row_indices, new_col_indices)), shape=rating_matrix_sparse.shape)
 
         rating_matrix_sparse = vstack([rating_matrix_sparse, new_rating_matrix])
-        save_npz('rating_matrix_sparse.npz', rating_matrix_sparse)
+        save_npz(os.path.join(self.data_directory, 'rating_matrix_sparse.npz'), rating_matrix_sparse)
     
     def score_rating(self, rating_name): #should be cached - app_id -> rating, takes too long
         if rating_name == 'Overwhelmingly Positive':
@@ -324,12 +329,18 @@ class FunkSVD():
             return 0.7
 
 class Testing():
-    def __init__(self):
-        self.model = FunkSVD('../train_and_test.npz')
+    '''
+    parameters:
+    data_directory: place where games.csv, recommendations.csv and users.csv are
+    rating_matrix_path: path to rating_matrix_sparse.npz or equivalent
+    '''
+    def __init__(self, data_directory, rating_matrix_path):
+        self.model = FunkSVD(rating_matrix_path, data_directory)
 
     def ask_for_recommendation(self, user_id, amount):
         return self.model.recommend(user_id, amount)
     
 # abc = FunkSVD('../train_and_test.npz')
 # abc.train(learning_rate=0.002, num_epochs=40, regularization=0.1, save_freq=1, start_over=False, latent_features=15)
-print(Testing().ask_for_recommendation(13022991, 10))
+if __name__ == '__main__':
+    print(Testing().ask_for_recommendation(13022991, 10))
