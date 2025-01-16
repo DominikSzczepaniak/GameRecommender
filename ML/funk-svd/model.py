@@ -207,7 +207,7 @@ class FunkSVD():
             self.load_recommendations_count()
 
     def count_recommendations_func(self):
-        self.recommendations = pd.read_csv('recommendations.csv')
+        self.recommendations = pd.read_csv('../recommendations.csv')
         self.count_recommendations = dict()
         for _, line in self.recommendations.iterrows():
             app_id = line['app_id']
@@ -233,7 +233,7 @@ class FunkSVD():
         returns: game rating - "Overwhelmingly Positive", "Very Positive", "Positive", "Mostly Positive", "Mixed", "Mostly Negative", "Negative", "Very Negative", "Overwhelmingly Negative"
         '''
         if self.games is None:
-            self.games = pd.read_csv('games.csv')
+            self.games = pd.read_csv('../games.csv')
         app_id = self.app_index[app_id]
         result = self.games.loc[self.games['app_id'] == app_id, 'rating']
         if result.empty:
@@ -246,7 +246,7 @@ class FunkSVD():
         returns: amount of games to recommend
         '''
         if not hasattr(self, 'recommendations'):
-            self.recommendations = pd.read_csv('recommendations.csv')
+            self.recommendations = pd.read_csv('../recommendations.csv')
         count = self.recommendations[self.recommendations['app_id'] == app_id].shape[0] #cache
         return count 
 
@@ -256,7 +256,7 @@ class FunkSVD():
         returns: game data (app_id, name, genres, etc.)
         '''
         if self.games is None:
-            self.games = pd.read_csv('games.csv')
+            self.games = pd.read_csv('../games.csv')
         original_app_id = self.reverse_app_index[app_id]
         result = self.games.loc[self.games['app_id'] == original_app_id]
         if result.empty:
@@ -330,8 +330,6 @@ class Testing():
     def ask_for_recommendation(self, user_id, amount):
         return self.model.recommend(user_id, amount)
     
-abc = FunkSVD('../train_and_test.npz')
-abc.train(learning_rate=0.001, num_epochs=50, regularization=0.1, save_freq=1, start_over=True, latent_features=15)
-# print(Testing().ask_for_recommendation(13022991, 10))
-# abc = FunkSVD('rating_matrix_sparse.npz')
-# print(abc.reverse_app_index[abc.get_user_history(1335369)[0]])
+# abc = FunkSVD('../train_and_test.npz')
+# abc.train(learning_rate=0.002, num_epochs=40, regularization=0.1, save_freq=1, start_over=False, latent_features=15)
+print(Testing().ask_for_recommendation(13022991, 10))
