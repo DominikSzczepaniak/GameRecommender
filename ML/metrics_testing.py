@@ -1,4 +1,4 @@
-from recmetrics import novelty, prediction_coverage, catalog_coverage, _ark, _apk, mark, mapk, personalization
+# from recmetrics import novelty, prediction_coverage, catalog_coverage, _ark, _apk, mark, mapk, personalization
 from typing import List
 import numpy as np
 from scipy.sparse import load_npz, coo_matrix
@@ -37,24 +37,46 @@ def test_model(predicted: List[List], actual: List[List], k: int, user_amount: i
 
 class HistoryGetter:
     def __init__(self, rest_history_file_path: str):
+        """
+        Loads the rest_test data from the specified file and initializes an empty dictionary for user histories.
+
+        Args:
+            rest_history_file_path (str): Path to the rest_test.npz file.
+        """
         self.rest_history = load_npz(rest_history_file_path)
-        self.user_histories = {}
+        self.user_histories = {}  # Dictionary to store user histories
 
     def get_user_actual(self, userId: int):
-        '''
-        Parameters:
+        """
+        Extracts the app_ids (column indices) from the rest_test history for the given user.
+
+        Args:
             userId (int): The ID of the user whose history is requested.
 
         Returns:
-            np.ndarray: The `app_id`s (column indices) in the rest_test history for the given user.
-        '''
-        pass
+            np.ndarray: A numpy array containing the app_ids the user interacted with (column indices).
+        """
+        # Extract row and column data from COO matrix
+        user_row = self.rest_history.row
+        user_col = self.rest_history.col
+
+        # Filter entries based on the user ID
+        user_entries = user_col[user_row == userId]
+
+        return user_entries
 
     def build_user_histories(self):
-        '''
-        Build the dictionary where key is user_id and value is list of app_ids.
-        '''
-        pass
+        """
+        Iterates through the rest_test data and builds a dictionary where the key is the user_id and the value is a list of app_ids (column indices) they interacted with.
+        """
+        user_row = self.rest_history.row
+        user_col = self.rest_history.col
+
+        # Loop through each entry in rest_test data
+        for row, col in zip(user_row, user_col):
+            if row not in self.user_histories:
+                self.user_histories[row] = []
+            self.user_histories[row].append(col)
 
 
 def user_test_ids(test_matrix_path):
@@ -99,6 +121,6 @@ def funk_svd_testing():
 
 
 
-# abc = HistoryGetter('rest_test.npz')
-# abc.build_user_histories()
-# print(abc.get_user_actual(13))
+abc = HistoryGetter('rest_test.npz')
+abc.build_user_histories()
+print(abc.get_user_actual(5))
