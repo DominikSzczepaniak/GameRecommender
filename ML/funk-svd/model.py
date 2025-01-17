@@ -1,6 +1,3 @@
-#TODO mappings are bugged
-
-
 from scipy.sparse import load_npz, coo_matrix, vstack, save_npz
 import numpy as np 
 import os 
@@ -19,7 +16,7 @@ class FunkSVD():
         self.users = None 
         self.base_dir = os.path.dirname(os.path.abspath(__file__))
         self.load_mappings()
-        os.makedirs(self.save_dir, exist_ok=True)
+        os.makedirs(os.path.join(self.base_dir, self.save_dir), exist_ok=True)
         self.load_recommendations_count()
 
 
@@ -28,7 +25,6 @@ class FunkSVD():
         parameters: user_id after mapping, amount of games to recommend
         returns: list of recommended games in form of game data (app_id, name, genres, etc.)
         '''
-        assert type(user_id) == int
         user_matrix, games_matrix = self.load_model()
         user_matrix = torch.tensor(user_matrix)
         games_matrix = torch.tensor(games_matrix)
@@ -158,12 +154,12 @@ class FunkSVD():
         Saves the mappings to files if they don't exist using joblib for serialization.
         '''
         mapping_dir = 'mappings'
-        user_index_file = os.path.join(mapping_dir, 'user_index.joblib')
-        app_index_file = os.path.join(mapping_dir, 'app_index.joblib')
-        reverse_user_index_file = os.path.join(mapping_dir, 'reverse_user_index.joblib')
-        reverse_app_index_file = os.path.join(mapping_dir, 'reverse_app_index.joblib')
+        user_index_file = os.path.join(self.base_dir, mapping_dir, 'user_index.joblib')
+        app_index_file = os.path.join(self.base_dir, mapping_dir, 'app_index.joblib')
+        reverse_user_index_file = os.path.join(self.base_dir, mapping_dir, 'reverse_user_index.joblib')
+        reverse_app_index_file = os.path.join(self.base_dir, mapping_dir, 'reverse_app_index.joblib')
 
-        os.makedirs(mapping_dir, exist_ok=True)
+        os.makedirs(os.path.join(self.base_dir, mapping_dir), exist_ok=True)
 
         if (os.path.exists(user_index_file) and 
             os.path.exists(app_index_file) and 
@@ -266,7 +262,7 @@ class FunkSVD():
         result = self.games.loc[self.games['app_id'] == original_app_id]
         if result.empty:
             return None  
-        return result.iloc[0]['title']
+        return result.iloc[0]
     
     def score_game(self, user_id, app_id, score):
         '''
@@ -343,4 +339,7 @@ class Testing():
 # abc = FunkSVD('../train_and_test.npz')
 # abc.train(learning_rate=0.002, num_epochs=40, regularization=0.1, save_freq=1, start_over=False, latent_features=15)
 if __name__ == '__main__':
-    print(Testing().ask_for_recommendation(13022991, 10))
+    # print(Testing('../', '../train_and_test.npz').ask_for_recommendation(13022991, 10))
+    FunkSVD(rating_matrix_path='../rating_matrix_sparse.npz', data_directory="../", save_dir='model_checkpoint').train(learning_rate=0.01, num_epochs=30, regularization = 0.1, save_freq=1, start_over=True, latent_features=40)
+    FunkSVD(rating_matrix_path='../rating_matrix_sparse.npz', data_directory="../", save_dir='model_checkpoint').train(learning_rate=0.005, num_epochs=20, regularization = 0.1, save_freq=1, start_over=False, latent_features=40)
+    FunkSVD(rating_matrix_path='../rating_matrix_sparse.npz', data_directory="../", save_dir='model_checkpoint').train(learning_rate=0.002, num_epochs=20, regularization = 0.1, save_freq=1, start_over=False, latent_features=40)
