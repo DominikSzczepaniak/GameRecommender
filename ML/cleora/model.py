@@ -1,13 +1,13 @@
-def learn():
-    from pycleora import SparseMatrix
-    import numpy as np
-    import pandas as pd
-    from scipy.sparse import load_npz
-    import joblib
-    from sklearn.neighbors import NearestNeighbors
 
-    recommendations = pd.read_csv('recommendations.csv')
-
+from pycleora import SparseMatrix
+import numpy as np
+import pandas as pd
+from scipy.sparse import load_npz
+import joblib
+from sklearn.neighbors import NearestNeighbors
+import sys
+def fit():
+    recommendations = pd.read_csv('recommendations_train.csv')
 
     users_game = recommendations.groupby('user_id')['app_id'].apply(list).values
 
@@ -25,39 +25,39 @@ def learn():
     joblib.dump(embeddings, 'game_embeddings.joblib')
     joblib.dump(mat.entity_ids, 'game_entity_ids.joblib')
 
-    knn = NearestNeighbors(metric='euclidean', algorithm='auto')
+    knn = NearestNeighbors(metric='cosine', algorithm='auto')
     knn.fit(embeddings)
     joblib.dump(knn, 'knn_model.joblib')
 
-def check():
-    import joblib
-    import numpy as np
-    def recommend_similar_games(game_id, top_n=5):
-        embeddings = joblib.load('game_embeddings.joblib')
-        entity_ids = joblib.load('game_entity_ids.joblib')
-        knn = joblib.load('knn_model.joblib')
+class CleoraRecommender:
+    def __init__(self):
+        pass 
+
+    def recommend_similar_games(self, game_id, top_n=5):
+        if not hasattr(self, 'embeddings'):
+            self.embeddings = joblib.load('game_embeddings.joblib')
+            self.entity_ids = joblib.load('game_entity_ids.joblib')
+            self.knn = joblib.load('knn_model.joblib')
         game_id = str(game_id)
-        if game_id not in entity_ids:
+        if game_id not in self.entity_ids:
             raise ValueError(f"Game ID '{game_id}' not found.")
         
-        game_index = entity_ids.index(game_id)
-        game_embedding = embeddings[game_index].reshape(1, -1)
+        game_index = self.entity_ids.index(game_id)
+        game_embedding = self.embeddings[game_index].reshape(1, -1)
         
-        distances, indices = knn.kneighbors(game_embedding, n_neighbors=top_n + 1)
-        similar_games = [entity_ids[i] for i in indices.flatten() if i != game_index]
+        distances, indices = self.knn.kneighbors(game_embedding, n_neighbors=top_n + 1)
+        similar_games = [self.entity_ids[i] for i in indices.flatten() if i != game_index]
         
         return similar_games, distances.flatten()
 
-    game_id_to_recommend = 346110
-    similar_games, distances = recommend_similar_games(game_id_to_recommend, top_n=37609)
+# game_id_to_recommend = 346110
+# similar_games, distances = recommend_similar_games(game_id_to_recommend, top_n=37609)
 
-    # Display recommended similar games
-    print(f"Recommended similar games for Game ID {game_id_to_recommend}:")
-    for game, dist in zip(similar_games, distances):
-        print(f"Game ID: {game}, Similarity Distance: {dist:.4f}, game data: {get_game_data(game)}")
+# # Display recommended similar games
+# print(f"Recommended similar games for Game ID {game_id_to_recommend}:")
+# for game, dist in zip(similar_games, distances):
+#     print(f"Game ID: {game}, Similarity Distance: {dist:.4f}, game data: {get_game_data(game)}")
 
-import pandas as pd
-import sys
 games = pd.read_csv('games.csv')
 sys.stdout.reconfigure(encoding='utf-8')
 def get_game_data(app_id):
@@ -70,7 +70,41 @@ def get_game_data(app_id):
     if result.empty:
         return None  
     return result.iloc[0]['title']
-learn()
-check()
 
-#378648
+
+def recommend_for_game_history(game_history, k=10, recommender=CleoraRecommender()):
+    '''
+    parameters: game_history - history of games user played
+                k - number of games to recommend
+    returns: list of recommended games
+    '''
+    recommendations = {}
+    if len(game_history) == 0:
+        print('abc')
+        return recommender.recommend_similar_games(730, top_n=k)[0]
+    for game in game_history:
+        try:
+            similar_games, distances = recommender.recommend_similar_games(game, top_n=k)
+            for i, game in enumerate(similar_games):
+                if game not in recommendations:
+                    recommendations[game] = distances[i]
+        except ValueError as e:
+            print(e)
+            continue
+    recommendations = dict(sorted(recommendations.items(), key=lambda x: x[1]/len(game_history)))
+    return list(recommendations.keys())[:k]
+
+def recommend_for_user(user_id, k=10):
+    '''
+    parameters: user_id - user id
+                k - number of games to recommend
+    returns: list of recommended games
+    '''
+    recommendations = pd.read_csv('recommendations_train.csv')
+    user_history = recommendations.loc[recommendations['user_id'] == user_id]['app_id'].values
+    return recommend_for_game_history(user_history, k=k)
+cr = CleoraRecommender()
+game_history = [730, 280, 379720]
+print(f"Dla gier: {list(map(get_game_data, game_history))}\n Polecone zostaly:")
+print(list(map(get_game_data, recommend_for_game_history([730, 280, 379720], k=10, recommender=cr))))
+
