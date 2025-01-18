@@ -617,8 +617,8 @@ def funk_svd_testing():
     import importlib.util
     from pathlib import Path
 
-    module_path = Path("funk-svd/model.py")
-    spec = importlib.util.spec_from_file_location("model", module_path)
+    module_path = Path("funk-svd/model2.py")
+    spec = importlib.util.spec_from_file_location("model2", module_path)
     module = importlib.util.module_from_spec(spec)
     spec.loader.exec_module(module)
     Testing = module.Testing
@@ -632,11 +632,11 @@ def funk_svd_testing():
 
     predicted_list = []
     actual_list = []
-    exit_limit = 1000
+    exit_limit = 500
     exit_count = 0
     for user_id in tqdm.tqdm(test_user_ids, total=exit_limit, desc="Processing Users"):
         exit_count += 1
-        predicted = test_instance.ask_for_recommendation(user_id, 20)
+        predicted = test_instance.ask_for_recommendation(user_id, 10)
         new_predicted = []
 
         for item in predicted:  # Iterate directly over the dictionaries in the list
@@ -650,11 +650,11 @@ def funk_svd_testing():
         if(exit_count == exit_limit):
             break
 
-    test_results = test_model(predicted_list, actual_list, k=20, all_items=all_items)
+    test_results = test_model(predicted_list, actual_list, k=10, all_items=all_items)
     print("Funk svd metrics")
     print(test_results)
 
-load_all_items_id('games.csv')[0]
+# load_all_items_id('games.csv')[0]
 funk_svd_testing()
 
 # print(load_all_items_id('games.csv'))
