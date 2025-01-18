@@ -6,6 +6,7 @@ from tqdm import tqdm
 import torch
 import random
 import joblib
+from concurrent.futures import ThreadPoolExecutor, as_completed
 
 class FunkSVD():
     def __init__(self, rating_matrix_path, data_directory, save_dir='model_checkpoint'):
@@ -19,43 +20,7 @@ class FunkSVD():
         os.makedirs(os.path.join(self.base_dir, self.save_dir), exist_ok=True)
         self.load_recommendations_count()
 
-
     def recommend(self, user_id, amount):
-        '''
-        parameters: user_id after mapping, amount of games to recommend
-        returns: list of recommended games in form of game data (app_id, name, genres, etc.)
-        '''
-        user_matrix, games_matrix = self.load_model()
-        user_matrix = torch.tensor(user_matrix)
-        games_matrix = torch.tensor(games_matrix)
-        self.n_games = games_matrix.shape[0]
-        self.n_users = user_matrix.shape[0]
-
-        user_vector = user_matrix[user_id, :]
-        predicted_ratings = torch.matmul(user_vector, games_matrix.T).numpy()
-
-        played_games = set(self.get_user_history(user_id))
-        all_games = set(range(self.n_games))
-        non_interacted_games = list(all_games - played_games)
-
-        score_formula = lambda item_id: predicted_ratings[item_id] #* self.score_recommendation_amount(self.count_recommendations[self.reverse_app_index[item_id]]) #* self.score_rating(self.get_game_rating(item_id))
-        perfect_games = [(item_id, score_formula(item_id)) for item_id in non_interacted_games if score_formula(item_id) == 1]
-
-        if len(perfect_games) >= amount:
-            return random.choice(perfect_games, amount)
-        non_interacted_ratings = [(item_id, score_formula(item_id)) for item_id in non_interacted_games]
-        non_interacted_ratings.sort(key=lambda x: x[1], reverse=True)
-
-        result = []
-        for game in non_interacted_ratings:
-            if len(result) == amount:
-                break
-            if game[0] not in played_games:
-                result.append(self.get_game_data(game[0]))
-        return result 
-        # return non_interacted_ratings[:amount]
-
-    def recommend2(self, user_id, amount):
         """
         Parameters:
         ----------
@@ -118,41 +83,7 @@ class FunkSVD():
         return result
 
 
-    
-
-    def train(self, learning_rate=0.001, num_epochs=50, regularization = 0.1, save_freq=1, start_over=False, latent_features=10):
-        '''
-        Specify latent_features if start_over == True, otherwise you can ignore that
-        '''
-        self.load_rating_matrix()
-        user_matrix, games_matrix = [], []
-        if start_over:
-            user_matrix = np.random.normal(scale=1.0 / latent_features, size=(self.n_users, latent_features)) 
-            games_matrix = np.random.normal(scale=1.0 / latent_features, size=(self.n_games, latent_features)) 
-        else:  
-            user_matrix, games_matrix = self.load_model()
-            latent_features = games_matrix.shape[1]
-
-        for epoch in range(num_epochs):
-            total_error = 0
-            loop = tqdm(
-                zip(self.rating_matrix_sparse.row, self.rating_matrix_sparse.col, self.rating_matrix_sparse.data),
-                total=len(self.rating_matrix_sparse.data),
-            )
-            for user_idx, game_idx, rating in loop:
-                prediction = np.dot(user_matrix[user_idx], games_matrix[game_idx])
-                error = rating - prediction
-                
-                user_matrix[user_idx] += learning_rate * (error * games_matrix[game_idx] - regularization * user_matrix[user_idx])
-                games_matrix[game_idx] += learning_rate * (error * user_matrix[user_idx] - regularization * games_matrix[game_idx])
-                
-                total_error += error ** 2
-            
-            print(f"Epoch {epoch + 1}/{num_epochs}, Total Error: {total_error:.4f}, accuracy: {1 - total_error / len(self.rating_matrix_sparse.data):.4f}")
-            if((epoch+1) % save_freq == 0):
-                self.save_model(user_matrix, games_matrix)
-
-    def train2(self, learning_rate=0.001, num_epochs=50, regularization=0.1, save_freq=1, start_over=False, latent_features=10):
+    def train(self, learning_rate=0.001, num_epochs=50, regularization=0.1, save_freq=1, start_over=False, latent_features=10):
         """
         Train the model using SGD with biases and global mean.
 
@@ -223,6 +154,81 @@ class FunkSVD():
                 self.save_model(user_matrix, games_matrix, user_biases, item_biases, global_mean)
 
         print("Training complete.")
+
+
+    def train_parellel(self, learning_rate=0.001, num_epochs=50, regularization=0.1, save_freq=1, start_over=False, latent_features=10):
+        """
+        Train the model using SGD with biases and global mean in parallel.
+
+        Parameters:
+        ----------
+        learning_rate : float
+            Learning rate for SGD.
+        num_epochs : int
+            Number of epochs to train.
+        regularization : float
+            L2 regularization factor.
+        save_freq : int
+            Frequency of saving the model.
+        start_over : bool
+            If True, initialize new matrices; otherwise, load saved ones.
+        latent_features : int
+            Number of latent features (used if start_over=True).
+        """
+        self.load_rating_matrix()
+        if start_over:
+            user_matrix = np.random.normal(scale=1.0 / latent_features, size=(self.n_users, latent_features))
+            games_matrix = np.random.normal(scale=1.0 / latent_features, size=(self.n_games, latent_features))
+            user_biases = np.zeros(self.n_users)
+            item_biases = np.zeros(self.n_games)
+            global_mean = np.mean(self.rating_matrix_sparse.data)
+        else:
+            user_matrix, games_matrix, user_biases, item_biases, global_mean = self.load_model()
+            latent_features = games_matrix.shape[1]
+
+        def update_rating(user_idx, game_idx, rating):
+            """
+            Perform the SGD update for a single rating.
+            """
+            nonlocal total_error
+            pred = global_mean + user_biases[user_idx] + item_biases[game_idx]
+            pred += np.dot(user_matrix[user_idx], games_matrix[game_idx])
+            error = rating - pred
+
+            # Update biases
+            user_biases[user_idx] += learning_rate * (error - regularization * user_biases[user_idx])
+            item_biases[game_idx] += learning_rate * (error - regularization * item_biases[game_idx])
+
+            # Update latent factors
+            for factor in range(latent_features):
+                user_factor = user_matrix[user_idx, factor]
+                item_factor = games_matrix[game_idx, factor]
+
+                user_matrix[user_idx, factor] += learning_rate * (error * item_factor - regularization * user_factor)
+                games_matrix[game_idx, factor] += learning_rate * (error * user_factor - regularization * item_factor)
+
+            return error ** 2
+
+        for epoch in tqdm(range(num_epochs)):
+            total_error = 0
+            data = list(zip(self.rating_matrix_sparse.row, self.rating_matrix_sparse.col, self.rating_matrix_sparse.data))
+            np.random.shuffle(data)
+
+            with ThreadPoolExecutor() as executor:
+                futures = [executor.submit(update_rating, user_idx, game_idx, rating) for user_idx, game_idx, rating in data]
+                for future in as_completed(futures):
+                    total_error += future.result()
+
+            # Calculate and log metrics
+            rmse = np.sqrt(total_error / len(data))
+            print(f"Epoch {epoch + 1}/{num_epochs}, Total Error: {total_error:.4f}, RMSE: {rmse:.4f}")
+
+            # Save model periodically
+            if (epoch + 1) % save_freq == 0:
+                self.save_model(user_matrix, games_matrix, user_biases, item_biases, global_mean)
+
+        print("Training complete.")
+
 
 
     def train_one_user(self, user_id, learning_rate=0.001, num_epochs=50, regularization = 0.1, save_freq=1, start_over=False, latent_features=10):
@@ -355,7 +361,8 @@ class FunkSVD():
         recommendation_file_path = os.path.join(self.data_directory, 'recommendations.csv')
         self.recommendations = pd.read_csv(recommendation_file_path)
         self.count_recommendations = dict()
-        for _, line in self.recommendations.iterrows():
+        loop = tqdm(self.recommendations.iterrows(), total=self.recommendations.shape[0])
+        for _, line in loop:
             app_id = line['app_id']
             if app_id in self.count_recommendations:
                 self.count_recommendations[app_id] += 1
@@ -485,5 +492,6 @@ class Testing():
 # abc = FunkSVD('../train_and_test.npz')
 # abc.train(learning_rate=0.002, num_epochs=40, regularization=0.1, save_freq=1, start_over=False, latent_features=15)
 if __name__ == '__main__':
-    print(Testing('../', '../train_and_test.npz').ask_for_recommendation(13022991, 10))
+    # print(Testing('data', 'data/train_and_test.npz').ask_for_recommendation(13022991, 10))
+    FunkSVD('data/train_and_test.npz', 'data', save_dir='model_checkpoint5').train_parellel(learning_rate=0.01, num_epochs=10, regularization=0.005, save_freq=1, start_over=False, latent_features=30)
     

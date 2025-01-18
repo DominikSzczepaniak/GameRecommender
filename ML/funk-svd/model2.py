@@ -55,8 +55,6 @@ class FunkSVD():
         return result 
         # return non_interacted_ratings[:amount]
 
-    
-
     def train(self, learning_rate=0.001, num_epochs=50, regularization = 0.1, save_freq=1, start_over=False, latent_features=10):
         '''
         Specify latent_features if start_over == True, otherwise you can ignore that
@@ -64,8 +62,10 @@ class FunkSVD():
         self.load_rating_matrix()
         user_matrix, games_matrix = [], []
         if start_over:
-            user_matrix = np.random.normal(scale=1.0 / latent_features, size=(self.n_users, latent_features)) 
-            games_matrix = np.random.normal(scale=1.0 / latent_features, size=(self.n_games, latent_features)) 
+            # user_matrix = np.random.normal(scale=1.0 / latent_features, size=(self.n_users, latent_features)) 
+            # games_matrix = np.random.normal(scale=1.0 / latent_features, size=(self.n_games, latent_features)) 
+            user_matrix = np.random.normal(0, .1, (self.n_users, latent_features))
+            games_matrix = np.random.normal(0, .1, (self.n_games, latent_features))
         else:  
             user_matrix, games_matrix = self.load_model()
             latent_features = games_matrix.shape[1]
@@ -85,7 +85,8 @@ class FunkSVD():
                 
                 total_error += error ** 2
             
-            print(f"Epoch {epoch + 1}/{num_epochs}, Total Error: {total_error:.4f}, accuracy: {1 - total_error / len(self.rating_matrix_sparse.data):.4f}")
+            rmse = np.sqrt(total_error / len(self.rating_matrix_sparse.data))
+            print(f"Epoch {epoch + 1}/{num_epochs}, Total Error: {total_error:.4f}, accuracy: {1 - total_error / len(self.rating_matrix_sparse.data):.4f}, rmse: {rmse:.4f}")
             if((epoch+1) % save_freq == 0):
                 self.save_model(user_matrix, games_matrix)
 
@@ -127,7 +128,7 @@ class FunkSVD():
         user_matrix[user_idx] = user_vector
         self.save_model(user_matrix, games_matrix)
     
-    def save_model(self, user_matrix, games_matrix):
+    def save_model(self, user_matrix, games_matrix):#, user_biases, item_biases, global_mean):
         '''
         Save user and games matrices for later loading
         '''
@@ -141,9 +142,6 @@ class FunkSVD():
         '''
         user_path = os.path.join(self.base_dir, self.save_dir, 'user_matrix.npy')
         games_path = os.path.join(self.base_dir, self.save_dir, 'games_matrix.npy')
-        # user_biases_path = os.path.join(self.base_dir, self.save_dir, 'user_biases.npy')
-        # item_biases_path = os.path.join(self.base_dir, self.save_dir, 'item_biases.npy')
-        # global_mean_path = os.path.join(self.base_dir, self.save_dir, 'global_mean.npy')
 
         if os.path.exists(user_path) and os.path.exists(games_path):
             user_matrix = np.load(user_path)
@@ -216,7 +214,8 @@ class FunkSVD():
         recommendation_file_path = os.path.join(self.data_directory, 'recommendations.csv')
         self.recommendations = pd.read_csv(recommendation_file_path)
         self.count_recommendations = dict()
-        for _, line in self.recommendations.iterrows():
+        loop = tqdm(self.recommendations.iterrows(), total=self.recommendations.shape[0])
+        for _, line in loop:
             app_id = line['app_id']
             if app_id in self.count_recommendations:
                 self.count_recommendations[app_id] += 1
@@ -338,16 +337,18 @@ class Testing():
     rating_matrix_path: path to rating_matrix_sparse.npz or equivalent
     '''
     def __init__(self, data_directory, rating_matrix_path):
-        self.model = FunkSVD(rating_matrix_path, data_directory)
+        self.model = FunkSVD(rating_matrix_path, data_directory, save_dir='model_checkpoint2')
 
     def ask_for_recommendation(self, user_id, amount):
-        return self.model.recommend(user_id, amount)
+        return self.model.recommend2(user_id, amount)
     
 # abc = FunkSVD('../train_and_test.npz')
 # abc.train(learning_rate=0.002, num_epochs=40, regularization=0.1, save_freq=1, start_over=False, latent_features=15)
 if __name__ == '__main__':
-    # print(Testing('../', '../train_and_test.npz').ask_for_recommendation(13022991, 10))
-    # FunkSVD(rating_matrix_path='../rating_matrix_sparse.npz', data_directory="../", save_dir='model_checkpoint').train(learning_rate=0.01, num_epochs=30, regularization = 0.1, save_freq=1, start_over=False, latent_features=40)
-    # FunkSVD(rating_matrix_path='../rating_matrix_sparse.npz', data_directory="../", save_dir='model_checkpoint').train(learning_rate=0.005, num_epochs=20, regularization = 0.1, save_freq=1, start_over=False, latent_features=40)
-    # FunkSVD(rating_matrix_path='../rating_matrix_sparse.npz', data_directory="../", save_dir='model_checkpoint').train(learning_rate=0.002, num_epochs=20, regularization = 0.1, save_freq=1, start_over=False, latent_features=40)
-    FunkSVD(rating_matrix_path='../rating_matrix_sparse.npz', data_directory="../", save_dir='model_checkpoint').train(learning_rate=0.001, num_epochs=200, regularization = 0.005, save_freq=1, start_over=False, latent_features=40)
+    # print(Testing('data', 'data/train_and_test.npz').ask_for_recommendation(13022991, 10))
+    funksvd = FunkSVD('../train_and_test.npz', '../', save_dir='model_checkpoint4_oldmodel')
+    funksvd.train(learning_rate=0.01, num_epochs=27, regularization=0.005, save_freq=1, start_over=False, latent_features=100)
+    funksvd.train(learning_rate=0.005, num_epochs=20, regularization=0.005, save_freq=1, start_over=False, latent_features=100)
+    funksvd.train(learning_rate=0.002, num_epochs=20, regularization=0.005, save_freq=1, start_over=False, latent_features=100)
+    funksvd.train(learning_rate=0.001, num_epochs=10, regularization=0.005, save_freq=1, start_over=False, latent_features=100)
+    
