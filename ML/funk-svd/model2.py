@@ -337,18 +337,18 @@ class Testing():
     rating_matrix_path: path to rating_matrix_sparse.npz or equivalent
     '''
     def __init__(self, data_directory, rating_matrix_path):
-        self.model = FunkSVD(rating_matrix_path, data_directory, save_dir='model_checkpoint2')
+        self.model = FunkSVD(rating_matrix_path, data_directory, save_dir='model_checkpoint4_oldmodel')
 
     def ask_for_recommendation(self, user_id, amount):
-        return self.model.recommend2(user_id, amount)
+        return self.model.recommend(user_id, amount)
     
 # abc = FunkSVD('../train_and_test.npz')
 # abc.train(learning_rate=0.002, num_epochs=40, regularization=0.1, save_freq=1, start_over=False, latent_features=15)
 if __name__ == '__main__':
     # print(Testing('data', 'data/train_and_test.npz').ask_for_recommendation(13022991, 10))
-    funksvd = FunkSVD('../train_and_test.npz', '../', save_dir='model_checkpoint4_oldmodel')
-    funksvd.train(learning_rate=0.01, num_epochs=27, regularization=0.005, save_freq=1, start_over=False, latent_features=100)
-    funksvd.train(learning_rate=0.005, num_epochs=20, regularization=0.005, save_freq=1, start_over=False, latent_features=100)
-    funksvd.train(learning_rate=0.002, num_epochs=20, regularization=0.005, save_freq=1, start_over=False, latent_features=100)
-    funksvd.train(learning_rate=0.001, num_epochs=10, regularization=0.005, save_freq=1, start_over=False, latent_features=100)
+    funksvd = FunkSVD('../train_and_test.npz', '../', save_dir='model_checkpoint300latentfeatures_oldmodel')
+    funksvd.train(learning_rate=0.01, num_epochs=30, regularization=0.01, save_freq=1, start_over=False, latent_features=300)
+
+    # testing = Testing('../', '../train_and_test.npz')
+    # print(testing.ask_for_recommendation(13022991, 10))
     

@@ -25,7 +25,7 @@ def recall(predicted: List[List], actual: List[List], k: int) -> float:
     for pred, act in zip(predicted, actual):
         if not act:  # Avoid division by zero when actual is empty
             continue
-        act_set = set(act) 
+        act_set = set(tuple(act)) 
         pred_k = pred[:k] 
         relevant_recommended += len([item for item in pred_k if item in act_set])
         total_relevant += len(act)
@@ -46,14 +46,15 @@ def hitrate(predicted: List[List], actual: List[List], k) -> float:
     returns:
         how many users how at least one relevant item in top k recommendations
     '''
-    assert(len(predicted) >= k)
+    assert(len(predicted[0]) >= k)
     def helper(predicted, actual, k):
-        if len(set(predicted[:k]) & set(actual)) > 0:
+        predicted_set = set(tuple(item) for item in predicted[:k])
+        actual_set = set(tuple(item) for item in actual)
+        if len(predicted_set & actual_set) > 0:
             return 1 
         return 0
     total = np.sum([helper(predicted, actual, k) for i in range(len(predicted))])
     return total / len(predicted)
-
 
 def MRR(predicted: List[List], actual: List[List], k: int) -> float:
     '''
@@ -70,19 +71,20 @@ def MRR(predicted: List[List], actual: List[List], k: int) -> float:
     reciprocal_ranks = []
 
     for pred, act in zip(predicted, actual):
-        act_set = set(act) 
+        act_set = {tuple([item]) if np.isscalar(item) else tuple(item) for item in act}
         for rank, item in enumerate(pred[:k], start=1):
-            if item in act_set:
+            item_tuple = tuple([item]) if np.isscalar(item) else tuple(item)
+            if item_tuple in act_set:
                 reciprocal_ranks.append(1 / rank)
                 break
         else:
-            reciprocal_ranks.append(0)  # No relevant items in the top-k recommendations
+            reciprocal_ranks.append(0) 
 
     if not reciprocal_ranks:
         return 0.0
 
     return sum(reciprocal_ranks) / len(reciprocal_ranks)
-    
+
 
 def NDCG(predicted: List[List], actual: List[List], k: int) -> float:
     '''
@@ -93,20 +95,23 @@ def NDCG(predicted: List[List], actual: List[List], k: int) -> float:
     returns:
         NDCG score for the model calculated as the sum of the DCG scores for each user divided by the total number of users
     '''
-    def dcg(predicted, actual, k):
-        dcg = 0
-        for i in range(k):
-            if predicted[i] in actual:
-                dcg += 1 / (np.log2(i + 2))
-        return dcg
+    def dcg(pred, act, k):
+        dcg_score = 0
+        act_set = {tuple(item) if isinstance(item, list) else item for item in act}
+        for i in range(min(k, len(pred))):
+            item = tuple(pred[i]) if isinstance(pred[i], list) else pred[i]
+            if item in act_set:
+                dcg_score += 1 / (np.log2(i + 2))  # i+2 because log starts at position 1 (index 0)
+        return dcg_score
 
-    def idcg(actual, k):
-        idcg = 0
-        for i in range(k):
-            idcg += 1 / (np.log2(i + 2))
-        return idcg
+    def idcg(act, k):
+        idcg_score = 0
+        for i in range(min(k, len(act))):
+            idcg_score += 1 / (np.log2(i + 2))
+        return idcg_score
 
-    total = np.sum([dcg(predicted, actual, k) / idcg(actual, k) for i in range(len(predicted))])
+    total = np.sum([dcg(pred, act, k) / idcg(act, k) if idcg(act, k) > 0 else 0 
+                    for pred, act in zip(predicted, actual)])
     return total / len(predicted)
 
 #3.
@@ -123,8 +128,10 @@ def catalog_coverage(predicted: List[List[int]], all_items: List[int], k: int) -
     Returns:
         float: Catalog coverage, calculated as the proportion of unique recommended items in the catalog.
     """
-    if not predicted or not all_items:
-        raise ValueError("Predicted and all_items lists cannot be empty.")
+    if not predicted or len(predicted) == 0:
+        raise ValueError("Predicted list cannot be empty.")
+    if all_items is None or len(all_items) == 0:
+        raise ValueError("all_items cannot be empty.")
 
     recommended_items = set()
 
@@ -185,13 +192,19 @@ def test_model(predicted: List[List], actual: List[List], k: int, all_items: Lis
 
 def model_testing(model, k=10):
     all_items = load_all_items_id('games.csv')
-    historyGetter = HistoryGetter('rest_test.npz')
+    historyGetter = HistoryGetter.HistoryGetter('rest_test.npz')
     predictedList = []
     actualList = []
     test_user_ids = get_user_test_ids('test_matrix.npz')
 
+    amount_to_recommend = 2*k 
+    if amount_to_recommend > 10000:
+        amount_to_recommend = k+1
+    exit_limit = 200
+    exit_count = 0
     for user_id in tqdm.tqdm(test_user_ids, total=len(test_user_ids), desc="Processing Users"):
-        predicted = model.ask_for_recommendation(user_id, 10)
+        exit_count += 1
+        predicted = model.ask_for_recommendation(user_id, k)
         new_predicted = []
 
         for item in predicted:  
@@ -202,7 +215,8 @@ def model_testing(model, k=10):
 
         predictedList.append(predicted)
         actualList.append(actual)
-
+        if exit_count == exit_limit:
+            break
     test_results = test_model(predictedList, actualList, k, all_items=all_items)
     print(test_results)
 
@@ -215,9 +229,18 @@ def funksvd_testing():
     Testing = module.Testing
     test_instance = Testing('./', 'train_and_test.npz')
 
-    model_testing(test_instance, k=10)
+    model_testing(test_instance, k=1000)
 
 funksvd_testing()
 
+# class randomModel():
+#     def __init__(self):
+#         self.games = pd.read_csv('games.csv')
+#         self.unique_appids = self.games['app_id'].unique()
+        
+#     def ask_for_recommendation(self, user_id, k):
+#         return np.random.choice(self.unique_appids, k, replace=False).tolist()
+    
+# model_testing(randomModel(), k=1000)
 
 

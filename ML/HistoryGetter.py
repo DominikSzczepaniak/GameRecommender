@@ -1,3 +1,8 @@
+from scipy.sparse import load_npz
+import pandas as pd
+import joblib
+import os
+
 class HistoryGetter:
     def __init__(self, rest_history_file_path: str):
         """

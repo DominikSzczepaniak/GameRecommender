@@ -1,3 +1,5 @@
+import pandas as pd
+from scipy.sparse import load_npz
 def get_user_test_ids(matrix_file_path: str):
     """
     Loads a sparse matrix from an .npz file and returns a set of unique user IDs (row indices).
