@@ -6,218 +6,264 @@ import numpy as np
 from scipy.sparse import load_npz
 import pandas as pd
 import tqdm
-import HistoryGetter
-from metrics_helpers import get_user_test_ids, load_all_items_id
+from history_getter import HistoryGetter
 
-#1.
+# -----------------------=[ METRICS ]=-----------------------
+
+'''
+  Recall@k
+
+  Measures: How many of the actual items for a user are present in the top-k recommendations.
+  Focus: Recovers relevant items from the user's history.
+'''
+
 def recall(predicted: List[List], actual: List[List], k: int) -> float:
-    '''
-    parameters:
-        predicted: List of lists containing the top k recommendations for each user in test set 
-        actual: List of lists containing the actual items interacted with by each user in test set
-        k: int, number of recommendations to consider
-    returns:
-        float: recall score for the model calculated as the number of relevant items recommended to the user divided by the total number of relevant items - how many of actual[i] are in predicted[i] divided by len(actual[k])
-    '''
-    total_relevant = 0
-    relevant_recommended = 0
+  total_relevant = 0
+  relevant_recommended = 0
 
-    for pred, act in zip(predicted, actual):
-        if not act:  # Avoid division by zero when actual is empty
-            continue
-        act_set = set(act) 
-        pred_k = pred[:k] 
-        relevant_recommended += len([item for item in pred_k if item in act_set])
-        total_relevant += len(act)
+  for pred, act in zip(predicted, actual):
 
-    if total_relevant == 0:
-        return 0.0
+    act_set = set(tuple(act)) 
+    pred_k = pred[:k] 
 
-    return relevant_recommended / total_relevant
+    relevant_recommended += len([item for item in pred_k if item in act_set])
+    total_relevant += len(act)
 
-#2.
+  if total_relevant == 0:
+    return 0.0
 
-def hitrate(predicted: List[List], actual: List[List], k) -> float:
-    '''
-    parameters:
-        predicted - recommendations for each user
-        actual - actual items for each user (relevant items)
-        k - number of recommendations to consider
-    returns:
-        how many users how at least one relevant item in top k recommendations
-    '''
-    assert(len(predicted) >= k)
-    def helper(predicted, actual, k):
-        if len(set(predicted[:k]) & set(actual)) > 0:
-            return 1 
-        return 0
-    total = np.sum([helper(predicted, actual, k) for i in range(len(predicted))])
-    return total / len(predicted)
+  return relevant_recommended / total_relevant
 
+'''
+    Hit Rate@k
+
+    Measures: The proportion of users for whom at least one of their actual items is present in the top-k recommendations.
+    Focus: Simple check for any overlap between actual and recommended items.
+'''
+
+def hitrate(predicted: List[List], actual: List[List], k: int) -> float:
+  hits = 0
+
+  for pred, act in zip(predicted, actual):
+    # Check if there's any overlap between top-k predicted and actual items
+    if any(item in act for item in pred[:k]):
+      hits += 1
+
+  return hits / len(predicted) if predicted else 0.0
+
+'''
+  MRR@k
+
+  Measures: The average reciprocal rank of the first relevant item in the recommendation list.
+  Focus: Rewards systems that rank relevant items higher.
+'''
 
 def MRR(predicted: List[List], actual: List[List], k: int) -> float:
-    '''
-    parameters:
-        predicted - recommendations for each user
-        actual - actual items for each user (relevant items)
-        k - number of recommendations to consider
-    returns:
-        float: MRR score for the model.
-    '''
-    if not predicted or not actual or len(predicted) != len(actual):
-        raise ValueError("Predicted and actual lists must have the same length and cannot be empty.")
+  reciprocal_ranks = []
 
-    reciprocal_ranks = []
+  for pred, act in zip(predicted, actual):
+    act_set = {tuple([item]) if np.isscalar(item) else tuple(item) for item in act}
 
-    for pred, act in zip(predicted, actual):
-        act_set = set(act) 
-        for rank, item in enumerate(pred[:k], start=1):
-            if item in act_set:
-                reciprocal_ranks.append(1 / rank)
-                break
-        else:
-            reciprocal_ranks.append(0)  # No relevant items in the top-k recommendations
+    for rank, item in enumerate(pred[:k], start=1):
+      item_tuple = tuple([item]) if np.isscalar(item) else tuple(item)
 
-    if not reciprocal_ranks:
-        return 0.0
+      if item_tuple in act_set:
+        reciprocal_ranks.append(1 / rank)
+        break
+    else:
+        reciprocal_ranks.append(0) 
 
-    return sum(reciprocal_ranks) / len(reciprocal_ranks)
-    
+  if not reciprocal_ranks:
+    return 0.0
+
+  return sum(reciprocal_ranks) / len(reciprocal_ranks)
+
+'''
+  NDCG@k
+
+  Measures: The normalized discounted cumulative gain, which considers both the relevance of 
+  recommended items and their position in the list.
+  
+  Focus: Prioritizes relevant items at the top of the list and penalizes irrelevant items.
+'''
 
 def NDCG(predicted: List[List], actual: List[List], k: int) -> float:
-    '''
-    parameters:
-        predicted - recommendations for each user
-        actual - actual items for each user (relevant items)
-        k - number of recommendations to consider
-    returns:
-        NDCG score for the model calculated as the sum of the DCG scores for each user divided by the total number of users
-    '''
-    def dcg(predicted, actual, k):
-        dcg = 0
-        for i in range(k):
-            if predicted[i] in actual:
-                dcg += 1 / (np.log2(i + 2))
-        return dcg
+  def dcg(pred, act, k):
+    dcg_score = 0
 
-    def idcg(actual, k):
-        idcg = 0
-        for i in range(k):
-            idcg += 1 / (np.log2(i + 2))
-        return idcg
+    act_set = {tuple(item) if isinstance(item, list) else item for item in act}
 
-    total = np.sum([dcg(predicted, actual, k) / idcg(actual, k) for i in range(len(predicted))])
-    return total / len(predicted)
+    for i in range(min(k, len(pred))):
+      item = tuple(pred[i]) if isinstance(pred[i], list) else pred[i]
+      if item in act_set:
+        dcg_score += 1 / (np.log2(i + 2))  # i+2 because log starts at position 1 (index 0)
 
-#3.
+    return dcg_score
+
+  def idcg(act, k):
+    idcg_score = 0
+    for i in range(min(k, len(act))):
+      idcg_score += 1 / (np.log2(i + 2))
+
+    return idcg_score
+
+  total = np.sum([dcg(pred, act, k) / idcg(act, k) if idcg(act, k) > 0 else 0 
+                  for pred, act in zip(predicted, actual)])
+  
+  return total / len(predicted)
+
+'''
+  Catalog Coverage@k
+
+  Measures: The proportion of items in the catalog that are recommended to at least one user within the top-k recommendations.
+  Focus: Assesses the diversity of recommendations across the entire item catalog.
+'''
 
 def catalog_coverage(predicted: List[List[int]], all_items: List[int], k: int) -> float:
-    """
-    Calculates the catalog coverage for a recommendation model.
+  recommended_items = set()
 
-    Parameters:
-        predicted (List[List[int]]): List of lists containing the top k recommendations for each user.
-        all_items (List[int]): List of all possible items in the catalog.
-        k (int): Number of recommendations to consider.
+  for user_recommendations in predicted:
+    recommended_items.update(user_recommendations[:k])  # Consider only the top-k recommendations
 
-    Returns:
-        float: Catalog coverage, calculated as the proportion of unique recommended items in the catalog.
-    """
-    if not predicted or not all_items:
-        raise ValueError("Predicted and all_items lists cannot be empty.")
+  coverage = len(recommended_items) / len(all_items)
+  return coverage
 
-    recommended_items = set()
+'''
+  Novelty
 
-    for user_recommendations in predicted:
-        recommended_items.update(user_recommendations[:k])  # Consider only the top-k recommendations
-
-    coverage = len(recommended_items) / len(all_items)
-    return coverage
+  Measures: The average inverse popularity of recommended items.
+  Focus: Rewards systems that recommend less frequently interacted items, promoting exploration.
+'''
 
 def novelty(predicted: List[List[int]], actual: List[List[int]]) -> float:
-    """
-    Calculates the novelty score for a recommendation model.
+  # Compute item popularity (how often each item appears in actual interactions)
+  item_popularity = {}
 
-    Parameters:
-        predicted (List[List[int]]): List of lists containing the recommendations for each user.
-        actual (List[List[int]]): List of lists containing the actual items interacted with by each user.
+  for user_actual in actual:
+    for item in user_actual:
+      item_popularity[item] = item_popularity.get(item, 0) + 1
 
-    Returns:
-        float: Novelty score for the model, based on the average inverse popularity of recommended items.
-    """
-    if not predicted or not actual or len(predicted) != len(actual):
-        raise ValueError("Predicted and actual lists must have the same length and cannot be empty.")
+  total_users = len(actual)
+  total_novelty = 0
+  total_recommendations = 0
 
-    # Compute item popularity (how often each item appears in actual interactions)
-    item_popularity = {}
-    for user_actual in actual:
-        for item in user_actual:
-            item_popularity[item] = item_popularity.get(item, 0) + 1
+  for user_recommendations in predicted:
+    for item in user_recommendations:
+      if item in item_popularity:
+        # Popularity is normalized by total users to get the probability of interaction
+        popularity = item_popularity[item] / total_users
+        total_novelty += -math.log2(popularity)  # Higher inverse popularity is more novel
+        total_recommendations += 1
 
-    total_users = len(actual)
-    total_novelty = 0
-    total_recommendations = 0
+  if total_recommendations == 0:
+    return 0.0  # Avoid division by zero
 
-    for user_recommendations in predicted:
-        for item in user_recommendations:
-            if item in item_popularity:
-                # Popularity is normalized by total users to get the probability of interaction
-                popularity = item_popularity[item] / total_users
-                total_novelty += -math.log2(popularity)  # Higher inverse popularity is more novel
-                total_recommendations += 1
+  return total_novelty / total_recommendations
 
-    if total_recommendations == 0:
-        return 0.0  # Avoid division by zero
-
-    return total_novelty / total_recommendations
-
-
-#---------
+# -----------------------=[ MODEL EVALUATION ]=-----------------------
 
 def test_model(predicted: List[List], actual: List[List], k: int, all_items: List):
-    recall_score = recall(predicted, actual, k)
-    hitrate_score = hitrate(predicted, actual, k)
-    MRR_score = MRR(predicted, actual, k)
-    NDCG_score = NDCG(predicted, actual, k)
-    catalog_coverage_score = catalog_coverage(predicted, all_items, k)
-    novelty_score = novelty(predicted, actual)
-    return {"recall": recall_score, "hitrate": hitrate_score, "MRR": MRR_score, "NDCG": NDCG_score, "catalog_coverage": catalog_coverage_score, "novelty": novelty_score}
+  if len(predicted) != len(actual):
+      raise ValueError("Predicted and actual lists must have the same length.")
 
-def model_testing(model, k=10):
-    all_items = load_all_items_id('games.csv')
-    historyGetter = HistoryGetter('rest_test.npz')
-    predictedList = []
-    actualList = []
-    test_user_ids = get_user_test_ids('test_matrix.npz')
+  recall_score = recall(predicted, actual, k)
+  hitrate_score = hitrate(predicted, actual, k)
 
-    for user_id in tqdm.tqdm(test_user_ids, total=len(test_user_ids), desc="Processing Users"):
-        predicted = model.ask_for_recommendation(user_id, 10)
-        new_predicted = []
+  MRR_score = MRR(predicted, actual, k)
+  NDCG_score = NDCG(predicted, actual, k)
 
-        for item in predicted:  
-            new_predicted.append(item['app_id']) 
+  catalog_coverage_score = catalog_coverage(predicted, all_items, k)
+  novelty_score = novelty(predicted, actual)
 
-        predicted = new_predicted
-        actual = historyGetter.get_user_actual(user_id)
-
-        predictedList.append(predicted)
-        actualList.append(actual)
-
-    test_results = test_model(predictedList, actualList, k, all_items=all_items)
-    print(test_results)
+  return {"recall": recall_score, "hitrate": hitrate_score, 
+          "MRR": MRR_score, "NDCG": NDCG_score, 
+          "catalog_coverage": catalog_coverage_score, "novelty": novelty_score}
 
 
-def funksvd_testing():
-    module_path = Path("funk-svd/model2.py")
-    spec = importlib.util.spec_from_file_location("model2", module_path)
-    module = importlib.util.module_from_spec(spec)
-    spec.loader.exec_module(module)
-    Testing = module.Testing
-    test_instance = Testing('./', 'train_and_test.npz')
+def model_testing(model, path, k=10):
+  historyGetter = HistoryGetter(path)
+  all_items = historyGetter.load_all_items_id()
+  predictedList = []
+  actualList = []
+  test_user_ids = historyGetter.get_user_test_ids()
 
-    model_testing(test_instance, k=10)
+  counter =0 
 
-funksvd_testing()
+  for user_id in tqdm.tqdm(test_user_ids, total=len(test_user_ids), desc="Processing Users"):
+    predicted = model.ask_for_recommendation(user_id, k + 1)
+
+    actual = historyGetter.get_user_actual(user_id)
+
+    predictedList.append(predicted)
+    actualList.append(actual)
+
+    counter += 1
+    if counter > 20:
+      break
+
+  test_results = test_model(predictedList, actualList, k, all_items=all_items)
+
+  print(test_results)
+
+  return test_results
 
 
+def funksvd_testing(k):
+  # DO POPRAWY DOMINO
+  module_path = Path("funk-svd/model2.py")
+  spec = importlib.util.spec_from_file_location("model2", module_path)
+  module = importlib.util.module_from_spec(spec)
+  spec.loader.exec_module(module)
+  Testing = module.Testing
+  test_instance = Testing('./', 'train_and_test.npz')
 
+  model_testing(test_instance, k=10)
+
+
+def lightfm_testing(k):
+  from lightFMscaNN.model import LightFMscaNN
+
+  model_testing(LightFMscaNN(), "lightFMscaNN", k)
+
+
+def baseline_testing(k):
+  class randomModel():
+    def __init__(self):
+      self.games = pd.read_csv('games.csv')
+      self.unique_appids = self.games['app_id'].unique()
+      
+    def ask_for_recommendation(self, user_id, k):
+      return np.random.choice(self.unique_appids, k, replace=False).tolist()
+
+  res = []
+
+  # Do it 1000x times
+  for i in range(1000):
+    x = model_testing(randomModel(), k)
+    res.append((x['recall'], x['MRR'], x['hitrate']))
+
+  recalls, MRRs = zip(*res)
+
+  mean_recall = np.mean(recalls)
+  mean_mrr = np.mean(MRRs)
+
+  print(f"Mean Recall: {mean_recall}, Mean MRR: {mean_mrr}")
+
+
+# funksvd_testing(20)
+lightfm_testing(20)
+
+
+'''
+OBSŁUGA:
+Podajesz w konstruktorze nazwę folderu z twoim modelem.
+
+W folderze tym musi znajdować się folder data z:
+  users.csv
+  games.csv
+  rest_test.npz
+  test_matrix.npz
+
+Kod odpalany jest z folderu ML, więc w swoim pliku model.py, jeśli otwierasz jakieś pliki,
+to każdy path zaczyna się z ./<nazwa_twojego_folderu>/data/...
+'''
