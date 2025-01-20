@@ -23,7 +23,7 @@ def recall(predicted: List[List], actual: List[List], k: int) -> float:
     relevant_recommended = 0
 
     for pred, act in zip(predicted, actual):
-        if not act:  # Avoid division by zero when actual is empty
+        if len(act) == 0:  # Avoid division by zero when actual is empty
             continue
         act_set = set(tuple(act)) 
         pred_k = pred[:k] 
@@ -65,7 +65,7 @@ def MRR(predicted: List[List], actual: List[List], k: int) -> float:
     returns:
         float: MRR score for the model.
     '''
-    if not predicted or not actual or len(predicted) != len(actual):
+    if len(predicted) == 0 or len(actual) == 0 or len(predicted) != len(actual):
         raise ValueError("Predicted and actual lists must have the same length and cannot be empty.")
 
     reciprocal_ranks = []
@@ -152,7 +152,7 @@ def novelty(predicted: List[List[int]], actual: List[List[int]]) -> float:
     Returns:
         float: Novelty score for the model, based on the average inverse popularity of recommended items.
     """
-    if not predicted or not actual or len(predicted) != len(actual):
+    if len(predicted) == 0 or len(actual) == 0 or len(predicted) != len(actual):
         raise ValueError("Predicted and actual lists must have the same length and cannot be empty.")
 
     # Compute item popularity (how often each item appears in actual interactions)
