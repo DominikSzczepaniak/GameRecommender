@@ -22,13 +22,13 @@ class LightFMscaNN:
   # ----------------=[ Model initialization ]=----------------
   def __init__(self):
     try:
-      self.users = pd.read_csv('./data/users.csv')
-      self.games = pd.read_csv('./data/games.csv')
-      self.recommendations = pd.read_csv('./data/recommendations.csv')
-      self.games_metadata = pd.read_json('./data/games_metadata.json', lines=True)
+      self.users = pd.read_csv('./lightFMscaNN/data/users.csv')
+      self.games = pd.read_csv('./lightFMscaNN/data/games.csv')
+      self.recommendations = pd.read_csv('./lightFMscaNN/data/recommendations.csv')
+      self.games_metadata = pd.read_json('./lightFMscaNN/data/games_metadata.json', lines=True)
 
-      self.interactions = load_npz('./data/train_and_test.npz').tocsr()
-      self.load_model('warp')
+      self.interactions = load_npz('./lightFMscaNN/data/train_and_test.npz').tocsr()
+      self.load_model('bpr')
 
       unique_user_ids = self.users['user_id'].unique()
       unique_game_ids = self.games['app_id'].unique()
@@ -47,11 +47,11 @@ class LightFMscaNN:
     for epoch in tqdm(range(1, epochs + 1)):
       self.model.fit_partial(self.interactions, epochs=50, num_threads=20)
 
-      with open(f'./data/model/lightfm_{loss}.pkl', 'wb') as f:
+      with open(f'./lightFMscaNN/data/model/lightfm_{loss}.pkl', 'wb') as f:
         pickle.dump(self.model, f)
 
   def load_model(self, loss):
-    with open(f'./data/model/lightfm_{loss}.pkl', 'rb') as f:
+    with open(f'./lightFMscaNN/data/model/lightfm_{loss}.pkl', 'rb') as f:
       self.model: LightFM = pickle.load(f)
 
 
@@ -83,27 +83,27 @@ class LightFMscaNN:
     elif type == 1:
       user_embedding = self.model.user_embeddings[self.user_id_to_index[user_id]]
     
-    return user_embedding, user_games
+    return user_embedding
   
 
   def predict(self, user_id, k, type=0):
     searcher = scann.scann_ops_pybind.builder(self.model.item_embeddings, k, "dot_product").score_ah(1).build()
 
-    user_embedding, user_games = self.embed_user(user_id, type)
+    user_embedding = self.embed_user(user_id, type)
     indices, scores = searcher.search(user_embedding)
 
     sorted_indices = np.argsort(-scores)
     sorted_item_indices = [indices[i] for i in sorted_indices]
 
-    filtered_indices = []
-    for index in sorted_item_indices:
-      if self.index_to_game_id[index] not in user_games:
-        filtered_indices.append(index)
+    # filtered_indices = []
+    # for index in sorted_item_indices:
+    #   if self.index_to_game_id[index] not in user_games:
+    #     filtered_indices.append(index)
 
     return [self.index_to_game_id[idx] for idx in sorted_item_indices]
   
   # -----------------=[ Recommendation ]=-----------------
-  def recommend(self, user_id, k):
+  def ask_for_recommendation(self, user_id, k):
     return self.predict(user_id, k, 0)
   
 
@@ -122,6 +122,4 @@ class LightFMscaNN:
 
 if __name__ == "__main__":
   model = LightFMscaNN()
-  print(model.recommend(1723232, 5))
-
   print(list(map(model.game_id_to_title, model.similar_games('ELDEN RING', 5))))
