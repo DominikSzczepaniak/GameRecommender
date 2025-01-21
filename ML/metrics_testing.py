@@ -219,6 +219,11 @@ def lightfm_testing(k):
 
   model_testing(LightFMscaNN(k + 1), "lightFMscaNN", k)
 
+def widendeep_testing(k):
+  from widendeep.model import Widendeep
+
+  model_testing(Widendeep(), "widendeep", k)
+
 
 def baseline_testing(k):
   class randomModel():
