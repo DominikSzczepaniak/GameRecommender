@@ -20,7 +20,7 @@ class Logger:
 
 class LightFMscaNN:
   # ----------------=[ Model initialization ]=----------------
-  def __init__(self):
+  def __init__(self, k):
     try:
       self.users = pd.read_csv('./lightFMscaNN/data/users.csv')
       self.games = pd.read_csv('./lightFMscaNN/data/games.csv')
@@ -38,6 +38,9 @@ class LightFMscaNN:
       self.index_to_user_id = {idx: user_id for user_id, idx in self.user_id_to_index.items()}
       self.index_to_game_id = {idx: game_id for game_id, idx in self.game_id_to_index.items()}
       self.game_id_to_title = {row['app_id']: row['title'] for _, row in self.games.iterrows()}
+
+      # Fine tuned searcher
+      self.searcher = scann.scann_ops_pybind.builder(self.model.item_embeddings, k, "dot_product").score_ah(6, hash_type="lut256", training_iterations=11).build()
 
     except Exception as e:
       Logger.error(f'Model initialization failed: {e}')
@@ -87,10 +90,8 @@ class LightFMscaNN:
   
 
   def predict(self, user_id, k, type=0):
-    searcher = scann.scann_ops_pybind.builder(self.model.item_embeddings, k, "dot_product").score_ah(1).build()
-
     user_embedding = self.embed_user(user_id, type)
-    indices, scores = searcher.search(user_embedding)
+    indices, scores = self.searcher.search(user_embedding)
 
     sorted_indices = np.argsort(-scores)
     sorted_item_indices = [indices[i] for i in sorted_indices]
