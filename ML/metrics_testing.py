@@ -7,6 +7,9 @@ from scipy.sparse import load_npz
 import pandas as pd
 import tqdm
 from history_getter import HistoryGetter
+from sklearn.metrics.pairwise import cosine_similarity
+from scipy.sparse import csr_matrix 
+from sklearn.neighbors import NearestNeighbors
 
 # -----------------------=[ METRICS ]=-----------------------
 
@@ -186,7 +189,7 @@ def model_testing(model, path, k=10):
   predictedList = []
   actualList = []
   test_user_ids = historyGetter.get_user_test_ids()
-
+  # count = 0
   for user_id in tqdm.tqdm(test_user_ids, total=len(test_user_ids), desc="Processing Users"):
     predicted = model.ask_for_recommendation(user_id, k + 1)
 
@@ -194,6 +197,7 @@ def model_testing(model, path, k=10):
 
     predictedList.append(predicted)
     actualList.append(actual)
+    # count += 1
 
   test_results = test_model(predictedList, actualList, k, all_items=all_items)
 
@@ -265,11 +269,76 @@ def most_popular_games_testing(k):
 
   model_testing(MostPopularModel(), "./lightFMscaNN", k)
 
+def knn_based_model(k):
+  class KNNRecommender:
+    def __init__(self, data):
+        """
+        Initializes the AppRecommender with user-app rating data.
+        Assumes data is already mapped to numerical indices starting from 0.
+
+        Args:
+            data: Pandas DataFrame with columns 'user_id', 'app_id', and 'rating'.
+        """
+        self.df = data.copy()
+        self.user_app_matrix = csr_matrix((self.df['rating'], (self.df['user_id'], self.df['app_id'])))
+        self._train_knn()
+        self.max_app_id = self.df['app_id'].max() #needed to map back in case of missing apps in neighbors
+
+    def _train_knn(self):
+        """Trains the KNN model on the sparse matrix."""
+        self.knn_model = NearestNeighbors(metric='cosine', algorithm='brute', n_neighbors=20)
+        self.knn_model.fit(self.user_app_matrix)
+
+    def ask_for_recommendation(self, user_id, k=10):
+        """
+        Recommends k apps for a given user.
+
+        Args:
+            user_id: The ID of the user to get recommendations for.
+            k: The number of recommendations to return.
+
+        Returns:
+            A list of app IDs representing the recommendations, or None if the user is out of range.
+        """
+        if user_id >= self.user_app_matrix.shape[0] or user_id <0:
+            print(f"User {user_id} not found.")
+            return None
+
+        user_vector = self.user_app_matrix[user_id]
+
+        distances, indices = self.knn_model.kneighbors(user_vector, n_neighbors=min(k+1, self.user_app_matrix.shape[0]))
+
+        recommended_app_indices = []
+
+        for i in range(1, len(indices[0])):
+            neighbor_index = indices[0][i]
+            neighbor_ratings = self.user_app_matrix[neighbor_index].toarray().flatten()
+
+            rated_app_indices = np.where(neighbor_ratings > 0)[0]
+            for app_index in rated_app_indices:
+                if self.user_app_matrix[user_id, app_index] == 0:
+                    recommended_app_indices.append(app_index)
+
+        return recommended_app_indices[:k]
+      
+  def convert_sparse_to_csv(path):
+    sparsed = load_npz(path)
+    rows = sparsed.row
+    columns = sparsed.col
+    data = sparsed.data
+    recommendations = pd.DataFrame({'user_id': rows, 'app_id': columns, 'rating': data})
+    return recommendations
+  
+  model_testing(KNNRecommender(convert_sparse_to_csv("./lightFMscaNN/data/train_and_test.npz")), "./lightFMscaNN", 20)
+  
+  
+  
 
 # funksvd_testing(20)
 # lightfm_testing(1000)
 # baseline_testing(5)
-most_popular_games_testing(7000)
+# most_popular_games_testing(7000)
+knn_based_model(1000)
 
 # --------------=[ RANDOM MODEL (BASELINE) ]=-------------------
 
@@ -338,6 +407,16 @@ most_popular_games_testing(7000)
 # NDCG: 3.5611932660901256e-05
 # catalog_coverage: 0.13760025161188866
 # novelty: 10.632450951329721
+
+# ----------------=[ SIMPLE KNN ]=-----------------
+
+# RESULT FOR K = 20
+# recall: 0.0
+# hitrate: 0.0 
+# MRR: 0.0 
+# NDCG: 0.0 
+# catalog_coverage: 0.04623368454159459
+# novelty: 8.99900967899738
 
 # ----------------=[ FUNK SVD ]=-------------------
 
