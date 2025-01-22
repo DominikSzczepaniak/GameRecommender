@@ -247,3 +247,6 @@ src/.vs/config/applicationhost.config
 
 # JetBrains Rider's auto generated files
 .idea/
+
+ML/data/**/*
+**/.DS_Store
