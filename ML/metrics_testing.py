@@ -186,7 +186,7 @@ def model_testing(model, path, k=10):
   predictedList = []
   actualList = []
   test_user_ids = historyGetter.get_user_test_ids()
-
+  count = 0
   for user_id in tqdm.tqdm(test_user_ids, total=len(test_user_ids), desc="Processing Users"):
     predicted = model.ask_for_recommendation(user_id, k + 1)
 
@@ -194,6 +194,7 @@ def model_testing(model, path, k=10):
 
     predictedList.append(predicted)
     actualList.append(actual)
+    count += 1
 
   test_results = test_model(predictedList, actualList, k, all_items=all_items)
 
@@ -203,9 +204,11 @@ def model_testing(model, path, k=10):
 
 
 def funksvd_testing(k):
-  from funksvd.model2 import Testing
+  from funksvd.model import Testing
+  from funksvd.model3_imported import FunkSVD
 
-  model_testing(Testing('./', 'train_and_test.npz'), k=10)
+  # model_testing(Testing('./data', './data/train_and_test.npz'), "funksvd", k)
+  model_testing(FunkSVD('./funksvd/data/train_and_test.npz'), "funksvd", k)
 
 
 def lightfm_testing(k):
@@ -248,8 +251,8 @@ def baseline_testing(k):
   print(f"recall: {mean_recall}\nhitrate: {mean_hitrate}\nMRR: {mean_mrr}\nNDCG: {mean_ndcg}\ncatalog_coverage: {mean_cc}\nnovelty: {mean_novelty}")
 
 
-# funksvd_testing(20)
-lightfm_testing(1000)
+funksvd_testing(20)
+# lightfm_testing(1000)
 # baseline_testing(5)
 
 # --------------=[ RANDOM MODEL (BASELINE) ]=-------------------
@@ -303,6 +306,18 @@ lightfm_testing(1000)
 # NDCG: 0.051431921625534525
 # catalog_coverage: 0.586353986475861
 # novelty: 9.501393118104643
+
+
+
+# ----------------=[ SECOND VERSION FUNK SVD ]=-------------------
+
+# RESULT FOR K = 20
+# recall: 0.0022471910112359553
+# hitrate: 0.019801980198019802
+# MRR: 0.0016617046320016617
+# NDCG: 0.001050062874542493
+# catalog_coverage: 0.03182497247994968
+# novelty: 6.502367326907625
 
 # ----------------=[ LIGHTFM & SCANN ]=-------------------
 

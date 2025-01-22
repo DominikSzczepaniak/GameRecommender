@@ -198,7 +198,7 @@ class FunkSVD():
         '''
         Load full 2d rating matrix of initial rating (0/1) for every user-game pair that is not null
         '''
-        self.rating_matrix_sparse = load_npz(self.rating_matrix_path)
+        self.rating_matrix_sparse = load_npz(os.path.join(self.base_dir, self.rating_matrix_path))
         self.rating_matrix_csr = self.rating_matrix_sparse.tocsr()
         self.n_users, self.n_games = self.rating_matrix_csr.shape 
 

@@ -4,9 +4,7 @@ import os
 import pandas as pd
 from tqdm import tqdm
 import torch
-import random
 import joblib
-from concurrent.futures import ThreadPoolExecutor, as_completed
 
 class FunkSVD():
     def __init__(self, rating_matrix_path, data_directory, save_dir='model_checkpoint'):
@@ -35,24 +33,24 @@ class FunkSVD():
             Recommended games in the form of game data (app_id, name, genres, etc.).
         """
         # Load model parameters
-        user_matrix, games_matrix, user_biases, item_biases, global_mean = self.load_model()
-        
-        user_matrix = torch.tensor(user_matrix)
-        games_matrix = torch.tensor(games_matrix)
-        user_biases = torch.tensor(user_biases)
-        item_biases = torch.tensor(item_biases)
+        if not hasattr(self, 'user_matrix'):
+            self.user_matrix, self.games_matrix, self.user_biases, self.item_biases, self.global_mean = self.load_model()
+            self.user_matrix = torch.tensor(self.user_matrix)
+            self.games_matrix = torch.tensor(self.games_matrix)
+            self.user_biases = torch.tensor(self.user_biases)
+            self.item_biases = torch.tensor(self.item_biases)
 
         # Ensure the dimensions match
-        self.n_games = games_matrix.shape[0]
-        self.n_users = user_matrix.shape[0]
+        self.n_games = self.games_matrix.shape[0]
+        self.n_users = self.user_matrix.shape[0]
 
         # Calculate predicted ratings with biases and global mean
-        user_vector = user_matrix[user_id, :]
+        user_vector = self.user_matrix[user_id, :]
         predicted_ratings = (
-            global_mean
-            + user_biases[user_id].item()
-            + item_biases.numpy()
-            + torch.matmul(user_vector, games_matrix.T).numpy()
+            self.global_mean
+            + self.user_biases[user_id].item()
+            + self.item_biases.numpy()
+            + torch.matmul(user_vector, self.games_matrix.T).numpy()
         )
 
         # Get user's previously interacted games
@@ -78,7 +76,7 @@ class FunkSVD():
             if len(result) == amount:
                 break
             if game[0] not in played_games:
-                result.append(self.get_game_data(game[0]))
+                result.append(self.reverse_app_index[game[0]])
 
         return result
 
@@ -105,11 +103,12 @@ class FunkSVD():
         # Load or initialize matrices
         self.load_rating_matrix()
         if start_over:
-            user_matrix = np.random.normal(scale=1.0 / latent_features, size=(self.n_users, latent_features))
-            games_matrix = np.random.normal(scale=1.0 / latent_features, size=(self.n_games, latent_features))
+            user_matrix = np.random.normal(0, .1, (self.n_users, latent_features))
+            games_matrix = np.random.normal(0, .1, (self.n_games, latent_features))
             user_biases = np.zeros(self.n_users)
             item_biases = np.zeros(self.n_games)
             global_mean = np.mean(self.rating_matrix_sparse.data)
+            print(global_mean)
         else:
             user_matrix, games_matrix, user_biases, item_biases, global_mean = self.load_model()
             latent_features = games_matrix.shape[1]
@@ -136,12 +135,18 @@ class FunkSVD():
                 item_biases[game_idx] += learning_rate * (error - regularization * item_biases[game_idx])
 
                 # Update latent factors
-                for factor in range(latent_features):
-                    user_factor = user_matrix[user_idx, factor]
-                    item_factor = games_matrix[game_idx, factor]
+                user_factors = user_matrix[user_idx, :]
+                item_factors = games_matrix[game_idx, :]
 
-                    user_matrix[user_idx, factor] += learning_rate * (error * item_factor - regularization * user_factor)
-                    games_matrix[game_idx, factor] += learning_rate * (error * user_factor - regularization * item_factor)
+                user_matrix[user_idx, :] += learning_rate * (error * item_factors - regularization * user_factors)
+                games_matrix[game_idx, :] += learning_rate * (error * user_factors - regularization * item_factors)
+
+                # for factor in range(latent_features):
+                #     user_factor = user_matrix[user_idx, factor]
+                #     item_factor = games_matrix[game_idx, factor]
+
+                #     user_matrix[user_idx, factor] += learning_rate * (error * item_factor - regularization * user_factor)
+                #     games_matrix[game_idx, factor] += learning_rate * (error * user_factor - regularization * item_factor)
 
                 total_error += error ** 2
 
@@ -154,81 +159,6 @@ class FunkSVD():
                 self.save_model(user_matrix, games_matrix, user_biases, item_biases, global_mean)
 
         print("Training complete.")
-
-
-    def train_parellel(self, learning_rate=0.001, num_epochs=50, regularization=0.1, save_freq=1, start_over=False, latent_features=10):
-        """
-        Train the model using SGD with biases and global mean in parallel.
-
-        Parameters:
-        ----------
-        learning_rate : float
-            Learning rate for SGD.
-        num_epochs : int
-            Number of epochs to train.
-        regularization : float
-            L2 regularization factor.
-        save_freq : int
-            Frequency of saving the model.
-        start_over : bool
-            If True, initialize new matrices; otherwise, load saved ones.
-        latent_features : int
-            Number of latent features (used if start_over=True).
-        """
-        self.load_rating_matrix()
-        if start_over:
-            user_matrix = np.random.normal(scale=1.0 / latent_features, size=(self.n_users, latent_features))
-            games_matrix = np.random.normal(scale=1.0 / latent_features, size=(self.n_games, latent_features))
-            user_biases = np.zeros(self.n_users)
-            item_biases = np.zeros(self.n_games)
-            global_mean = np.mean(self.rating_matrix_sparse.data)
-        else:
-            user_matrix, games_matrix, user_biases, item_biases, global_mean = self.load_model()
-            latent_features = games_matrix.shape[1]
-
-        def update_rating(user_idx, game_idx, rating):
-            """
-            Perform the SGD update for a single rating.
-            """
-            nonlocal total_error
-            pred = global_mean + user_biases[user_idx] + item_biases[game_idx]
-            pred += np.dot(user_matrix[user_idx], games_matrix[game_idx])
-            error = rating - pred
-
-            # Update biases
-            user_biases[user_idx] += learning_rate * (error - regularization * user_biases[user_idx])
-            item_biases[game_idx] += learning_rate * (error - regularization * item_biases[game_idx])
-
-            # Update latent factors
-            for factor in range(latent_features):
-                user_factor = user_matrix[user_idx, factor]
-                item_factor = games_matrix[game_idx, factor]
-
-                user_matrix[user_idx, factor] += learning_rate * (error * item_factor - regularization * user_factor)
-                games_matrix[game_idx, factor] += learning_rate * (error * user_factor - regularization * item_factor)
-
-            return error ** 2
-
-        for epoch in tqdm(range(num_epochs)):
-            total_error = 0
-            data = list(zip(self.rating_matrix_sparse.row, self.rating_matrix_sparse.col, self.rating_matrix_sparse.data))
-            np.random.shuffle(data)
-
-            with ThreadPoolExecutor() as executor:
-                futures = [executor.submit(update_rating, user_idx, game_idx, rating) for user_idx, game_idx, rating in data]
-                for future in as_completed(futures):
-                    total_error += future.result()
-
-            # Calculate and log metrics
-            rmse = np.sqrt(total_error / len(data))
-            print(f"Epoch {epoch + 1}/{num_epochs}, Total Error: {total_error:.4f}, RMSE: {rmse:.4f}")
-
-            # Save model periodically
-            if (epoch + 1) % save_freq == 0:
-                self.save_model(user_matrix, games_matrix, user_biases, item_biases, global_mean)
-
-        print("Training complete.")
-
 
 
     def train_one_user(self, user_id, learning_rate=0.001, num_epochs=50, regularization = 0.1, save_freq=1, start_over=False, latent_features=10):
@@ -345,7 +275,7 @@ class FunkSVD():
         '''
         Load full 2d rating matrix of initial rating (0/1) for every user-game pair that is not null
         '''
-        self.rating_matrix_sparse = load_npz(self.rating_matrix_path)
+        self.rating_matrix_sparse = load_npz(os.path.join(self.base_dir, self.rating_matrix_path))
         self.rating_matrix_csr = self.rating_matrix_sparse.tocsr()
         self.n_users, self.n_games = self.rating_matrix_csr.shape 
 
@@ -484,14 +414,14 @@ class Testing():
     rating_matrix_path: path to rating_matrix_sparse.npz or equivalent
     '''
     def __init__(self, data_directory, rating_matrix_path):
-        self.model = FunkSVD(rating_matrix_path, data_directory, save_dir='model_checkpoint2')
+        self.model = FunkSVD(rating_matrix_path, data_directory, save_dir='100latenssecondmodel')
 
     def ask_for_recommendation(self, user_id, amount):
-        return self.model.recommend2(user_id, amount)
+        return self.model.recommend(user_id, amount)
     
 # abc = FunkSVD('../train_and_test.npz')
 # abc.train(learning_rate=0.002, num_epochs=40, regularization=0.1, save_freq=1, start_over=False, latent_features=15)
 if __name__ == '__main__':
     # print(Testing('data', 'data/train_and_test.npz').ask_for_recommendation(13022991, 10))
-    FunkSVD('data/train_and_test.npz', 'data', save_dir='model_checkpoint5').train_parellel(learning_rate=0.01, num_epochs=10, regularization=0.005, save_freq=1, start_over=False, latent_features=30)
+    FunkSVD('./data/train_and_test.npz', './data', save_dir='100latenssecondmodel').train(learning_rate=0.01, num_epochs=40, regularization=0.005, save_freq=1, start_over=False, latent_features=100)
     
