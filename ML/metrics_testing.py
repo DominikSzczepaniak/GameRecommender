@@ -186,7 +186,7 @@ def model_testing(model, path, k=10):
   predictedList = []
   actualList = []
   test_user_ids = historyGetter.get_user_test_ids()
-
+  count = 0
   for user_id in tqdm.tqdm(test_user_ids, total=len(test_user_ids), desc="Processing Users"):
     predicted = model.ask_for_recommendation(user_id, k + 1)
 
@@ -194,6 +194,9 @@ def model_testing(model, path, k=10):
 
     predictedList.append(predicted)
     actualList.append(actual)
+    count += 1
+    if count > 20:
+      break
 
   test_results = test_model(predictedList, actualList, k, all_items=all_items)
 
@@ -223,6 +226,11 @@ def widendeep_testing(k):
   from widendeep.model import Widendeep
 
   model_testing(Widendeep(), "widendeep", k)
+  
+def cleora_testing(k):
+  from cleora.model import Cleora 
+  
+  model_testing(Cleora(), "cleora", k)
 
 
 def baseline_testing(k):
@@ -255,7 +263,8 @@ def baseline_testing(k):
 
 
 # funksvd_testing(20)
-lightfm_testing(1000)
+# lightfm_testing(1000)
+cleora_testing(20)
 # baseline_testing(5)
 
 # --------------=[ RANDOM MODEL (BASELINE) ]=-------------------
