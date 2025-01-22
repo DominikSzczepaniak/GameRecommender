@@ -246,11 +246,30 @@ def baseline_testing(k):
   mean_novelty = np.mean(novelties)
 
   print(f"recall: {mean_recall}\nhitrate: {mean_hitrate}\nMRR: {mean_mrr}\nNDCG: {mean_ndcg}\ncatalog_coverage: {mean_cc}\nnovelty: {mean_novelty}")
+  
+def most_popular_games_testing(k):
+  class MostPopularModel():
+    def __init__(self):
+      self.rating_matrix_sparse = load_npz("./funksvd/data/train_and_test.npz")
+      popularity = {}
+      rows = self.rating_matrix_sparse.row
+      for row in rows:
+        if row in popularity:
+          popularity[row] += 1
+        else:
+          popularity[row] = 1
+      self.most_popular = [key for key, value in sorted(popularity.items(), key=lambda item: item[1], reverse=True)]
+      
+    def ask_for_recommendation(self, user_id, k):
+      return self.most_popular[:k]
+
+  model_testing(MostPopularModel(), "./lightFMscaNN", k)
 
 
 # funksvd_testing(20)
-lightfm_testing(1000)
+# lightfm_testing(1000)
 # baseline_testing(5)
+most_popular_games_testing(7000)
 
 # --------------=[ RANDOM MODEL (BASELINE) ]=-------------------
 
@@ -293,6 +312,32 @@ lightfm_testing(1000)
 # NDCG: 0.0001708630981299354
 # catalog_coverage: 0.17859175971064634
 # novelty: 9.986698678624087
+
+# ----------------=[ POPULARITY BASED MODEL ]=-----
+
+# RESULT FOR K = 20
+# recall: 0.0
+# hitrate: 0.0
+# MRR: 0.0
+# NDCG: 0.0
+# catalog_coverage: 0.0003931435760339676
+# novelty: 0.0
+
+# RESULT FOR K = 1000
+# recall: 0.0
+# hitrate: 0.0
+# MRR: 0.0
+# NDCG: 0.0
+# catalog_coverage: 0.01965717880169838
+# novelty: 0.0
+
+# RESULT FOR K = 7000
+# recall: 0.00024445395098698285
+# hitrate: 0.002
+# MRR: 7.286774791241168e-07
+# NDCG: 3.5611932660901256e-05
+# catalog_coverage: 0.13760025161188866
+# novelty: 10.632450951329721
 
 # ----------------=[ FUNK SVD ]=-------------------
 
