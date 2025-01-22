@@ -187,8 +187,6 @@ def model_testing(model, path, k=10):
   actualList = []
   test_user_ids = historyGetter.get_user_test_ids()
 
-  counter =0 
-
   for user_id in tqdm.tqdm(test_user_ids, total=len(test_user_ids), desc="Processing Users"):
     predicted = model.ask_for_recommendation(user_id, k + 1)
 
@@ -196,10 +194,6 @@ def model_testing(model, path, k=10):
 
     predictedList.append(predicted)
     actualList.append(actual)
-
-    counter += 1
-    if counter > 20:
-      break
 
   test_results = test_model(predictedList, actualList, k, all_items=all_items)
 
@@ -217,35 +211,158 @@ def funksvd_testing(k):
 def lightfm_testing(k):
   from lightFMscaNN.model import LightFMscaNN
 
-  model_testing(LightFMscaNN(), "lightFMscaNN", k)
+  model_testing(LightFMscaNN(k + 1), "lightFMscaNN", k)
+
+def widendeep_testing(k):
+  from widendeep.model import Widendeep
+
+  model_testing(Widendeep(), "widendeep", k)
 
 
 def baseline_testing(k):
   class randomModel():
     def __init__(self):
-      self.games = pd.read_csv('games.csv')
+      self.games = pd.read_csv('./lightFMscaNN/data/games.csv')
       self.unique_appids = self.games['app_id'].unique()
       
     def ask_for_recommendation(self, user_id, k):
       return np.random.choice(self.unique_appids, k, replace=False).tolist()
 
   res = []
+  randModel = randomModel()
 
-  # Do it 1000x times
-  for i in range(1000):
-    x = model_testing(randomModel(), k)
-    res.append((x['recall'], x['MRR'], x['hitrate']))
+  # Do it 100x times
+  for i in range(100):
+    x = model_testing(randModel,'./lightFMscaNN',  k)
+    res.append((x['recall'], x['hitrate'], x['MRR'], x['NDCG'], x['catalog_coverage'], x['novelty']))
 
-  recalls, MRRs = zip(*res)
+  recalls, hitrates, MRRs, NDCGs, ccs, novelties = zip(*res)
 
   mean_recall = np.mean(recalls)
+  mean_hitrate = np.mean(hitrates)
   mean_mrr = np.mean(MRRs)
+  mean_ndcg = np.mean(NDCGs)
+  mean_cc = np.mean(ccs)
+  mean_novelty = np.mean(novelties)
 
-  print(f"Mean Recall: {mean_recall}, Mean MRR: {mean_mrr}")
+  print(f"recall: {mean_recall}\nhitrate: {mean_hitrate}\nMRR: {mean_mrr}\nNDCG: {mean_ndcg}\ncatalog_coverage: {mean_cc}\nnovelty: {mean_novelty}")
 
 
 # funksvd_testing(20)
-lightfm_testing(20)
+lightfm_testing(1000)
+# baseline_testing(5)
+
+# --------------=[ RANDOM MODEL (BASELINE) ]=-------------------
+
+# MEAN RESULT k = 1000
+# recall: 0.0195531901726592
+# hitrate: 0.133535
+# MRR: 0.0011883266309552643
+# NDCG: 0.004356446537054758
+# catalog_coverage: 1.0
+# novelty: 9.985290890104652
+
+# MEAN RESULT k = 100
+# recall: 0.001962373909276564
+# hitrate: 0.015565000000000002
+# MRR: 0.0007569879781817824
+# NDCG: 0.0007428989669030387
+# catalog_coverage: 0.9805128557949362
+# novelty: 9.983184253399171
+
+# MEAN RESULT k = 50
+# recall: 0.0009629308744352992
+# hitrate: 0.007715
+# MRR: 0.0006583595102567189
+# NDCG: 0.00045173036030064925
+# catalog_coverage: 0.8599396524610787
+# novelty: 9.98752393814248
+
+# MEAN RESULT k = 20
+# recall: 0.00039915836376013355
+# hitrate: 0.003215
+# MRR: 0.0005434982047536228
+# NDCG: 0.00026699828372699476
+# catalog_coverage: 0.544651871363422
+# novelty: 9.98512749067507
+
+# MEAN RESULT k = 5
+# recall: 9.901602821956804e-05
+# hitrate: 0.0008000000000000001
+# MRR: 0.0003858333333333333
+# NDCG: 0.0001708630981299354
+# catalog_coverage: 0.17859175971064634
+# novelty: 9.986698678624087
+
+# ----------------=[ FUNK SVD ]=-------------------
+
+# RESULT FOR K = 1000
+# recall: 0.1871906129682821
+# hitrate: 0.683
+# MRR: 0.00481212914512411
+# NDCG: 0.051431921625534525
+# catalog_coverage: 0.586353986475861
+# novelty: 9.501393118104643
+
+# ----------------=[ LIGHTFM & SCANN ]=-------------------
+
+# RESULT FOR K = 1000
+# recall: 0.3153660498793242
+# hitrate: 0.7335 
+# MRR: 0.04248862490598973
+# NDCG: 0.09736259528409646
+# catalog_coverage: 0.3226922472086806
+# novelty: 8.893390041598554
+
+# RESULT FOR K = 100
+# recall: 0.07958413268147782
+# hitrate: 0.386 
+# MRR: 0.04248862490598973
+# NDCG: 0.04106378410285326
+# catalog_coverage: 0.10245321591445196
+# novelty: 7.737388446837643
+
+# RESULT FOR K = 50
+# recall: 0.04746580852775543
+# hitrate: 0.2745
+# MRR: 0.039523982299902206
+# NDCG: 0.030717454205468276
+# catalog_coverage: 0.07100172983173456
+# novelty: 7.474290710517738
+
+# RESULT FOR K = 20
+# recall: 0.02258803143758896
+# hitrate: 0.153
+# MRR: 0.035851715720639936
+# NDCG: 0.01996750158017846
+# catalog_coverage: 0.04306887875452115
+# novelty: 7.243296084036996
+
+# RESULT FOR K = 5
+# recall: 0.007240547063555913
+# hitrate: 0.054
+# MRR: 0.026791666666666686
+# NDCG: 0.014019246466019422
+# catalog_coverage: 0.020561409026576504
+# novelty: 6.980510243720895
+
+# ----------------=[ Wide & Deep Neural Network ]=-------------------
+
+# RESULT FOR K = 1000
+# recall: 0.6317912363258571
+# hitrate: 0.9565
+# MRR: 0.0950702559634543
+# NDCG: 0.20419445006575007
+# catalog_coverage: 0.033554804214499134
+# novelty: 8.136490434583198
+
+# RESULT FOR K = 20
+# recall: 0.054574344557843914,
+# hitrate: 0.315
+# MRR: 0.08526039451819249
+# NDCG: 0.0521284034010134
+# catalog_coverage: 0.0013170309797137915
+# novelty: 5.558717925101877
 
 
 '''
