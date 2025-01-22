@@ -203,15 +203,9 @@ def model_testing(model, path, k=10):
 
 
 def funksvd_testing(k):
-  # DO POPRAWY DOMINO
-  module_path = Path("funk-svd/model2.py")
-  spec = importlib.util.spec_from_file_location("model2", module_path)
-  module = importlib.util.module_from_spec(spec)
-  spec.loader.exec_module(module)
-  Testing = module.Testing
-  test_instance = Testing('./', 'train_and_test.npz')
+  from funksvd.model2 import Testing
 
-  model_testing(test_instance, k=10)
+  model_testing(Testing('./', 'train_and_test.npz'), k=10)
 
 
 def lightfm_testing(k):
