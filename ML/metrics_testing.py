@@ -195,7 +195,7 @@ def model_testing(model, path, k=10):
     predictedList.append(predicted)
     actualList.append(actual)
     count += 1
-    if count > 20:
+    if count > 100:
       break
 
   test_results = test_model(predictedList, actualList, k, all_items=all_items)
@@ -206,15 +206,9 @@ def model_testing(model, path, k=10):
 
 
 def funksvd_testing(k):
-  # DO POPRAWY DOMINO
-  module_path = Path("funk-svd/model2.py")
-  spec = importlib.util.spec_from_file_location("model2", module_path)
-  module = importlib.util.module_from_spec(spec)
-  spec.loader.exec_module(module)
-  Testing = module.Testing
-  test_instance = Testing('./', 'train_and_test.npz')
-
-  model_testing(test_instance, k=10)
+  from funksvd.model import Testing
+  
+  model_testing(Testing('./', 'train_and_test.npz'), k=10)
 
 
 def lightfm_testing(k):
@@ -264,7 +258,7 @@ def baseline_testing(k):
 
 # funksvd_testing(20)
 # lightfm_testing(1000)
-cleora_testing(20)
+cleora_testing(1000)
 # baseline_testing(5)
 
 # --------------=[ RANDOM MODEL (BASELINE) ]=-------------------
