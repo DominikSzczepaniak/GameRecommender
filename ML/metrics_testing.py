@@ -418,6 +418,14 @@ knn_based_model(1000)
 # catalog_coverage: 0.04623368454159459
 # novelty: 8.99900967899738
 
+# RESULT FOR K = 1000
+# recall: 0.0
+# hitrate: 0.0 
+# MRR: 0.0 
+# NDCG: 0.0 
+# catalog_coverage: 0.04923368454159459
+# novelty: 9.46120564899738
+
 # ----------------=[ FUNK SVD ]=-------------------
 
 # RESULT FOR K = 1000
