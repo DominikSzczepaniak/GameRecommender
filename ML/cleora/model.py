@@ -6,8 +6,18 @@ from scipy.sparse import load_npz
 import joblib
 from sklearn.neighbors import NearestNeighbors
 import sys
+
+def convert_sparse_to_csv(path):
+    sparsed = load_npz(path)
+    rows = sparsed.row
+    columns = sparsed.col
+    data = sparsed.data
+    recommendations = pd.DataFrame({'user_id': rows, 'app_id': columns, 'rating': data})
+    return recommendations
+
 def fit():
-    recommendations = pd.read_csv('recommendations_train.csv')
+    # convert_sparse_to_csv('./data/train_and_test.npz')
+    recommendations = convert_sparse_to_csv('./data/train_and_test.npz')
 
     users_game = recommendations.groupby('user_id')['app_id'].apply(list).values
 
@@ -49,6 +59,38 @@ class CleoraRecommender:
         similar_games = [self.entity_ids[i] for i in indices.flatten() if i != game_index]
         
         return similar_games, distances.flatten()
+    
+    def recommend_for_game_history(self, game_history, k=10):
+        '''
+        parameters: game_history - history of games user played
+                    k - number of games to recommend
+        returns: list of recommended games
+        '''
+        recommendations = {}
+        if len(game_history) == 0:
+            print('abc')
+            return self.recommend_similar_games(730, top_n=k)[0]
+        for game in game_history:
+            try:
+                similar_games, distances = self.recommend_similar_games(game, top_n=k)
+                for i, game in enumerate(similar_games):
+                    if game not in recommendations:
+                        recommendations[game] = distances[i]
+            except ValueError as e:
+                print(e)
+                continue
+        recommendations = dict(sorted(recommendations.items(), key=lambda x: x[1]/len(game_history)))
+        return list(recommendations.keys())[:k]
+
+    def ask_for_recommendation(self, user_id, k=10):
+        '''
+        parameters: user_id - user id
+                    k - number of games to recommend
+        returns: list of recommended games
+        '''
+        recommendations = pd.read_csv('recommendations_train.csv')
+        user_history = recommendations.loc[recommendations['user_id'] == user_id]['app_id'].values
+        return self.recommend_for_game_history(user_history, k=k)
 
 # game_id_to_recommend = 346110
 # similar_games, distances = recommend_similar_games(game_id_to_recommend, top_n=37609)
@@ -71,40 +113,10 @@ def get_game_data(app_id):
         return None  
     return result.iloc[0]['title']
 
+# cr = CleoraRecommender()
+# game_history = [730, 280, 379720]
+# print(f"Dla gier: {list(map(get_game_data, game_history))}\n Polecone zostaly:")
+# print(list(map(get_game_data, recommend_for_game_history([730, 280, 379720], k=10, recommender=cr))))
 
-def recommend_for_game_history(game_history, k=10, recommender=CleoraRecommender()):
-    '''
-    parameters: game_history - history of games user played
-                k - number of games to recommend
-    returns: list of recommended games
-    '''
-    recommendations = {}
-    if len(game_history) == 0:
-        print('abc')
-        return recommender.recommend_similar_games(730, top_n=k)[0]
-    for game in game_history:
-        try:
-            similar_games, distances = recommender.recommend_similar_games(game, top_n=k)
-            for i, game in enumerate(similar_games):
-                if game not in recommendations:
-                    recommendations[game] = distances[i]
-        except ValueError as e:
-            print(e)
-            continue
-    recommendations = dict(sorted(recommendations.items(), key=lambda x: x[1]/len(game_history)))
-    return list(recommendations.keys())[:k]
-
-def recommend_for_user(user_id, k=10):
-    '''
-    parameters: user_id - user id
-                k - number of games to recommend
-    returns: list of recommended games
-    '''
-    recommendations = pd.read_csv('recommendations_train.csv')
-    user_history = recommendations.loc[recommendations['user_id'] == user_id]['app_id'].values
-    return recommend_for_game_history(user_history, k=k)
-cr = CleoraRecommender()
-game_history = [730, 280, 379720]
-print(f"Dla gier: {list(map(get_game_data, game_history))}\n Polecone zostaly:")
-print(list(map(get_game_data, recommend_for_game_history([730, 280, 379720], k=10, recommender=cr))))
+fit()
 
