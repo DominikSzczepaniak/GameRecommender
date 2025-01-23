@@ -15,10 +15,11 @@ class FunkSVD():
         self.data_directory = data_directory
         self.games = None 
         self.users = None 
-        self.base_dir = os.path.dirname(os.path.abspath(__file__))
+        self.base_dir = "./"#os.path.dirname(os.path.abspath(__file__))
         self.load_mappings()
         os.makedirs(os.path.join(self.base_dir, self.save_dir), exist_ok=True)
-        self.load_recommendations_count()
+        # self.load_recommendations_count()
+        self.loaded = False 
 
     def recommend(self, user_id, amount):
         """
@@ -35,24 +36,25 @@ class FunkSVD():
             Recommended games in the form of game data (app_id, name, genres, etc.).
         """
         # Load model parameters
-        user_matrix, games_matrix, user_biases, item_biases, global_mean = self.load_model()
+        if not self.loaded:
+            user_matrix, games_matrix, user_biases, item_biases, global_mean = self.load_model()
         
-        user_matrix = torch.tensor(user_matrix)
-        games_matrix = torch.tensor(games_matrix)
-        user_biases = torch.tensor(user_biases)
-        item_biases = torch.tensor(item_biases)
+            self.user_matrix = torch.tensor(user_matrix)
+            self.games_matrix = torch.tensor(games_matrix)
+            self.user_biases = torch.tensor(user_biases)
+            self.item_biases = torch.tensor(item_biases)
 
         # Ensure the dimensions match
-        self.n_games = games_matrix.shape[0]
-        self.n_users = user_matrix.shape[0]
+        self.n_games = self.games_matrix.shape[0]
+        self.n_users = self.user_matrix.shape[0]
 
         # Calculate predicted ratings with biases and global mean
-        user_vector = user_matrix[user_id, :]
+        user_vector = self.user_matrix[user_id, :]
         predicted_ratings = (
             global_mean
-            + user_biases[user_id].item()
-            + item_biases.numpy()
-            + torch.matmul(user_vector, games_matrix.T).numpy()
+            + self.user_biases[user_id].item()
+            + self.item_biases.numpy()
+            + torch.matmul(user_vector, self.games_matrix.T).numpy()
         )
 
         # Get user's previously interacted games
@@ -78,7 +80,8 @@ class FunkSVD():
             if len(result) == amount:
                 break
             if game[0] not in played_games:
-                result.append(self.get_game_data(game[0]))
+                # result.append(self.get_game_data(game[0]))
+                result.append(game[0])
 
         return result
 
@@ -289,13 +292,14 @@ class FunkSVD():
         user_biases_path = os.path.join(self.base_dir, self.save_dir, 'user_biases.npy')
         item_biases_path = os.path.join(self.base_dir, self.save_dir, 'item_biases.npy')
         global_mean_path = os.path.join(self.base_dir, self.save_dir, 'global_mean.npy')
-
+        print(user_path)
         if os.path.exists(user_path) and os.path.exists(games_path):
             user_matrix = np.load(user_path)
             games_matrix = np.load(games_path)
             user_biases = np.load(user_biases_path)
             item_biases = np.load(item_biases_path)
             global_mean = np.load(global_mean_path)
+            self.loaded = True 
             return user_matrix, games_matrix, user_biases, item_biases, global_mean
         else:
             raise Exception("Model files not found.")
@@ -484,14 +488,14 @@ class Testing():
     rating_matrix_path: path to rating_matrix_sparse.npz or equivalent
     '''
     def __init__(self, data_directory, rating_matrix_path):
-        self.model = FunkSVD(rating_matrix_path, data_directory, save_dir='model_checkpoint2')
+        self.model = FunkSVD(rating_matrix_path, data_directory, save_dir='100latenssecondmodel')
 
     def ask_for_recommendation(self, user_id, amount):
-        return self.model.recommend2(user_id, amount)
+        return self.model.recommend(user_id, amount)
     
 # abc = FunkSVD('../train_and_test.npz')
 # abc.train(learning_rate=0.002, num_epochs=40, regularization=0.1, save_freq=1, start_over=False, latent_features=15)
-if __name__ == '__main__':
-    # print(Testing('data', 'data/train_and_test.npz').ask_for_recommendation(13022991, 10))
-    FunkSVD('data/train_and_test.npz', 'data', save_dir='model_checkpoint5').train_parellel(learning_rate=0.01, num_epochs=10, regularization=0.005, save_freq=1, start_over=False, latent_features=30)
+# if __name__ == '__main__':
+#     # print(Testing('data', 'data/train_and_test.npz').ask_for_recommendation(13022991, 10))
+#     FunkSVD('data/train_and_test.npz', 'data', save_dir='model_checkpoint5').train_parellel(learning_rate=0.01, num_epochs=10, regularization=0.005, save_freq=1, start_over=False, latent_features=30)
     

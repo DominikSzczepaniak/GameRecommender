@@ -198,19 +198,20 @@ def model_testing(model, path, k=10):
     predictedList.append(predicted)
     actualList.append(actual)
     # count += 1
-
+  print(actualList[0])
+  print(predictedList[0])
   test_results = test_model(predictedList, actualList, k, all_items=all_items)
 
   print(test_results)
 
   return test_results
 
+# -------------------------------------------------
 
 def funksvd_testing(k):
-  from funksvd.model2 import Testing
+  from funksvd.model import Testing
 
-  model_testing(Testing('./', 'train_and_test.npz'), k=10)
-
+  model_testing(Testing('./', './funksvd/data/train_and_test.npz'), "funksvd", k)
 
 def lightfm_testing(k):
   from lightFMscaNN.model import LightFMscaNN
@@ -221,7 +222,6 @@ def widendeep_testing(k):
   from widendeep.model import Widendeep
 
   model_testing(Widendeep(), "widendeep", k)
-
 
 def baseline_testing(k):
   class randomModel():
@@ -329,16 +329,16 @@ def knn_based_model(k):
     recommendations = pd.DataFrame({'user_id': rows, 'app_id': columns, 'rating': data})
     return recommendations
   
-  model_testing(KNNRecommender(convert_sparse_to_csv("./lightFMscaNN/data/train_and_test.npz")), "./lightFMscaNN", 20)
+  model_testing(KNNRecommender(convert_sparse_to_csv("./lightFMscaNN/data/train_and_test.npz")), "./lightFMscaNN", k)
   
   
   
 
-# funksvd_testing(20)
+funksvd_testing(20)
 # lightfm_testing(1000)
 # baseline_testing(5)
 # most_popular_games_testing(7000)
-knn_based_model(1000)
+# knn_based_model(1000)
 
 # --------------=[ RANDOM MODEL (BASELINE) ]=-------------------
 
@@ -428,13 +428,29 @@ knn_based_model(1000)
 
 # ----------------=[ FUNK SVD ]=-------------------
 
-# RESULT FOR K = 1000
-# recall: 0.1871906129682821
-# hitrate: 0.683
-# MRR: 0.00481212914512411
-# NDCG: 0.051431921625534525
-# catalog_coverage: 0.586353986475861
-# novelty: 9.501393118104643
+# RESULT FOR K = 20 (32 latents, 50 epochs)
+# recall: 0.00018334046324023712
+# hitrate: 0.0015
+# MRR: 0.00018566176470588235,
+# NDCG: 9.509867525977047e-05
+# catalog_coverage: 0.14843135713162448
+# novelty: 9.427013479265254
+
+# RESULT FOR K = 20 (64 latents, 50 epochs)
+# recall: 0.0
+# hitrate: 0.0
+# MRR: 0.0
+# NDCG: 0.0
+# catalog_coverage: 0.1920113225349898
+# novelty: 9.513351827255354
+
+# RESULT FOR K = 20 (128 latents, 50 epochs)
+# recall: 0.00021434012351223712,
+# hitrate: 0.0015
+# MRR: 0.00018055555555555555
+# NDCG: 8.724114344843611e-05
+# catalog_coverage: 0.22041594590344393
+# novelty: 9.43259256795809
 
 # ----------------=[ LIGHTFM & SCANN ]=-------------------
 

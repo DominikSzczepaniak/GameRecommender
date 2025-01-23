@@ -17,7 +17,7 @@ class FunkSVD():
         self.base_dir = os.path.dirname(os.path.abspath(__file__))
         self.load_mappings()
         os.makedirs(os.path.join(self.base_dir, self.save_dir), exist_ok=True)
-        self.load_recommendations_count()
+        # self.load_recommendations_count()
 
 
     def recommend(self, user_id, amount):
@@ -25,14 +25,16 @@ class FunkSVD():
         parameters: user_id after mapping, amount of games to recommend
         returns: list of recommended games in form of game data (app_id, name, genres, etc.)
         '''
-        user_matrix, games_matrix = self.load_model()
-        user_matrix = torch.tensor(user_matrix)
-        games_matrix = torch.tensor(games_matrix)
-        self.n_games = games_matrix.shape[0]
-        self.n_users = user_matrix.shape[0]
+        if not hasattr(self, 'user_matrix'):
+            self.user_matrix, self.games_matrix = self.load_model()
+            self.user_matrix = torch.tensor(self.user_matrix)
+            self.games_matrix = torch.tensor(self.games_matrix)
+            
+        self.n_games = self.games_matrix.shape[0]
+        self.n_users = self.user_matrix.shape[0]
 
-        user_vector = user_matrix[user_id, :]
-        predicted_ratings = torch.matmul(user_vector, games_matrix.T).numpy()
+        user_vector = self.user_matrix[user_id, :]
+        predicted_ratings = torch.matmul(user_vector, self.games_matrix.T).numpy()
 
         played_games = set(self.get_user_history(user_id))
         all_games = set(range(self.n_games))
@@ -51,7 +53,8 @@ class FunkSVD():
             if len(result) == amount:
                 break
             if game[0] not in played_games:
-                result.append(self.get_game_data(game[0]))
+                # result.append(self.get_game_data(game[0]))
+                result.append(game[0])
         return result 
         # return non_interacted_ratings[:amount]
 
@@ -337,7 +340,7 @@ class Testing():
     rating_matrix_path: path to rating_matrix_sparse.npz or equivalent
     '''
     def __init__(self, data_directory, rating_matrix_path):
-        self.model = FunkSVD(rating_matrix_path, data_directory, save_dir='model_checkpoint4_oldmodel')
+        self.model = FunkSVD(rating_matrix_path, data_directory, save_dir='model_256latent')
 
     def ask_for_recommendation(self, user_id, amount):
         return self.model.recommend(user_id, amount)
@@ -346,8 +349,8 @@ class Testing():
 # abc.train(learning_rate=0.002, num_epochs=40, regularization=0.1, save_freq=1, start_over=False, latent_features=15)
 if __name__ == '__main__':
     # print(Testing('data', 'data/train_and_test.npz').ask_for_recommendation(13022991, 10))
-    funksvd = FunkSVD('../train_and_test.npz', '../', save_dir='model_checkpoint300latentfeatures_oldmodel')
-    funksvd.train(learning_rate=0.01, num_epochs=30, regularization=0.01, save_freq=1, start_over=False, latent_features=300)
+    funksvd = FunkSVD('./data/train_and_test.npz', './data', save_dir='model_32latent')
+    funksvd.train(learning_rate=0.01, num_epochs=50, regularization=0.005, save_freq=1, start_over=True, latent_features=32)
 
     # testing = Testing('../', '../train_and_test.npz')
     # print(testing.ask_for_recommendation(13022991, 10))
