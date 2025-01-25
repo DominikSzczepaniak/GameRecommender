@@ -1,126 +1,191 @@
+import pickle
+
 import numpy as np
 import pandas as pd
 import scann
 from lightfm import LightFM
+from lightfm.evaluation import recall_at_k
+from scipy.sparse import coo_matrix, load_npz
 from tqdm import tqdm
-from scipy.sparse import load_npz, save_npz
-from sklearn.model_selection import train_test_split
-import pickle
-from scipy.sparse import coo_matrix
+
 
 class Logger:
-  @staticmethod
-  def log(msg):
-    print(f'[LOG] {msg}')
 
-  @staticmethod
-  def error(msg):
-    print(f'[ERROR] {msg}')
+    @staticmethod
+    def log(msg):
+        print(f"[LOG] {msg}")
+
+    @staticmethod
+    def error(msg):
+        print(f"[ERROR] {msg}")
 
 
 class LightFMscaNN:
-  # ----------------=[ Model initialization ]=----------------
-  def __init__(self, k):
-    try:
-      self.users = pd.read_csv('./lightFMscaNN/data/users.csv')
-      self.games = pd.read_csv('./lightFMscaNN/data/games.csv')
-      self.recommendations = pd.read_csv('./lightFMscaNN/data/recommendations.csv')
-      self.games_metadata = pd.read_json('./lightFMscaNN/data/games_metadata.json', lines=True)
+    # ----------------=[ Model initialization ]=----------------
+    def __init__(self, k):
+        try:
+            self.users = pd.read_csv("./data/users.csv")
+            self.games = pd.read_csv("./data/games.csv")
+            self.recommendations = pd.read_csv("./data/recommendations.csv")
+            self.games_metadata = pd.read_json("./data/games_metadata.json",
+                                               lines=True)
 
-      self.interactions = load_npz('./lightFMscaNN/data/train_and_test.npz').tocsr()
-      self.load_model('bpr')
+            self.interactions = load_npz("./data/train_and_test.npz").tocsr()
 
-      unique_user_ids = self.users['user_id'].unique()
-      unique_game_ids = self.games['app_id'].unique()
+            self.load_model("64")
 
-      self.user_id_to_index = {user_id: idx for idx, user_id in enumerate(unique_user_ids)}
-      self.game_id_to_index = {game_id: idx for idx, game_id in enumerate(unique_game_ids)}
-      self.index_to_user_id = {idx: user_id for user_id, idx in self.user_id_to_index.items()}
-      self.index_to_game_id = {idx: game_id for game_id, idx in self.game_id_to_index.items()}
-      self.game_id_to_title = {row['app_id']: row['title'] for _, row in self.games.iterrows()}
+            unique_user_ids = self.users["user_id"].unique()
+            unique_game_ids = self.games["app_id"].unique()
 
-      # Fine tuned searcher
-      self.searcher = scann.scann_ops_pybind.builder(self.model.item_embeddings, k, "dot_product").score_ah(6, hash_type="lut256", training_iterations=11).build()
+            self.user_id_to_index = {
+                user_id: idx
+                for idx, user_id in enumerate(unique_user_ids)
+            }
+            self.game_id_to_index = {
+                game_id: idx
+                for idx, game_id in enumerate(unique_game_ids)
+            }
+            self.index_to_user_id = {
+                idx: user_id
+                for user_id, idx in self.user_id_to_index.items()
+            }
+            self.index_to_game_id = {
+                idx: game_id
+                for game_id, idx in self.game_id_to_index.items()
+            }
+            self.game_id_to_title = {
+                row["app_id"]: row["title"]
+                for _, row in self.games.iterrows()
+            }
 
-    except Exception as e:
-      Logger.error(f'Model initialization failed: {e}')
+            # Fine tuned searcher
+            self.searcher = (scann.scann_ops_pybind.builder(
+                self.model.item_embeddings, k,
+                "dot_product").score_ah(6,
+                                        hash_type="lut256",
+                                        training_iterations=11).build())
 
-  # ----------------=[ Model training ]=---------------
-  def fit(self, loss, epochs=6):
-    for epoch in tqdm(range(1, epochs + 1)):
-      self.model.fit_partial(self.interactions, epochs=50, num_threads=20)
+            # Calculate popularity as interaction counts (train set only)
+            train_popularity = np.array(
+                self.interactions.sum(axis=0)).flatten()
 
-      with open(f'./lightFMscaNN/data/model/lightfm_{loss}.pkl', 'wb') as f:
-        pickle.dump(self.model, f)
+            train_popularity += 1
 
-  def load_model(self, loss):
-    with open(f'./lightFMscaNN/data/model/lightfm_{loss}.pkl', 'rb') as f:
-      self.model: LightFM = pickle.load(f)
+            log_popularity = np.log(train_popularity)
+            self.popularity_weights = (log_popularity - log_popularity.min()
+                                       ) / (log_popularity.max() -
+                                            log_popularity.min())
 
+        except Exception as e:
+            Logger.error(f"Model initialization failed: {e}")
 
-  # ----------------=[ Helper functions ]=---------------
-  def list_user_liked_games(self, user_id):
-    user_index = self.user_id_to_index[user_id]
-    user_ratings = self.interactions[user_index].toarray()[0]
+    # ----------------=[ Model training ]=---------------
+    def fit(self, name, epochs=100):
+        for epoch in range(1, epochs + 1):
+            self.model.fit_partial(self.interactions, epochs=1, num_threads=15)
 
-    games = []
-    for idx, rating in enumerate(user_ratings):
-      if rating == 1:
-        games.append(self.index_to_game_id[idx])
+            val_recall = recall_at_k(self.model,
+                                     self.rest_test,
+                                     k=20,
+                                     num_threads=15).mean()
 
-    return games
+            print(f"Epoch {epoch}: Value of Recall@20 = {val_recall:.4f}")
 
-  # -----------------=[ Prediction ]=------------------
-  def embed_user(self, user_id, type=0):
-    user_games = self.list_user_liked_games(user_id)
+            with open(f"./data/model/lightfm_{name}.pkl", "wb") as f:
+                pickle.dump(model, f)
 
-    if len(user_games) == 0:
-      return np.zeros(64)
-    
-    if type == 0:
-      game_indices = [self.game_id_to_index[game_id] for game_id in user_games]
-      game_embeddings = self.model.item_embeddings[game_indices]
+    def load_model(self, name):
+        with open(f"./data/model/lightfm_{name}.pkl", "rb") as f:
+            self.model: LightFM = pickle.load(f)
 
-      user_embedding = np.mean(game_embeddings, axis=0)
-      
-    elif type == 1:
-      user_embedding = self.model.user_embeddings[self.user_id_to_index[user_id]]
-    
-    return user_embedding
-  
+    # ----------------=[ Helper functions ]=---------------
+    def list_user_liked_games(self, user_id):
+        user_index = self.user_id_to_index[user_id]
+        user_ratings = self.interactions[user_index].toarray()[0]
 
-  def predict(self, user_id, k, type=0):
-    user_embedding = self.embed_user(user_id, type)
-    indices, scores = self.searcher.search(user_embedding)
+        games = []
+        for idx, rating in enumerate(user_ratings):
+            if rating == 1:
+                games.append(self.index_to_game_id[idx])
 
-    sorted_indices = np.argsort(-scores)
-    sorted_item_indices = [indices[i] for i in sorted_indices]
+        return games
 
-    # filtered_indices = []
-    # for index in sorted_item_indices:
-    #   if self.index_to_game_id[index] not in user_games:
-    #     filtered_indices.append(index)
+    # -----------------=[ Prediction ]=------------------
+    def embed_user(self, user_id, type=0):
+        user_games = self.list_user_liked_games(user_id)
 
-    return [self.index_to_game_id[idx] for idx in sorted_item_indices]
-  
-  # -----------------=[ Recommendation ]=-----------------
-  def ask_for_recommendation(self, user_id, k):
-    return self.predict(user_id, k, 0)
-  
+        if len(user_games) == 0:
+            return np.zeros(64)
 
-  # -----------------=[ For Fun ]=------------------
-  def similar_games(self, game_title, k):
-    searcher = scann.scann_ops_pybind.builder(self.model.item_embeddings, k, "dot_product").score_ah(1).build()
+        if type == 0:
+            game_indices = [
+                self.game_id_to_index[game_id] for game_id in user_games
+            ]
+            game_embeddings = self.model.item_embeddings[game_indices]
 
-    game_id = self.games[self.games['title'] == game_title]['app_id'].values[0]
+            user_embedding = np.mean(game_embeddings, axis=0)
 
-    game_index = self.game_id_to_index[game_id]
-    game_embedding = self.model.item_embeddings[game_index]
-    indices, scores = searcher.search(game_embedding)
+        elif type == 1:
+            user_embedding = self.model.user_embeddings[
+                self.user_id_to_index[user_id]]
 
-    return [self.index_to_game_id[idx] for idx in indices]
+        return user_embedding
+
+    def predict(self, user_id, k, alpha=0.8):
+        _, known_items = self.interactions[user_id].nonzero()
+
+        all_items = np.arange(self.interactions.shape[1])
+        candidate_items = np.setdiff1d(all_items, known_items)
+
+        scores = self.model.predict(
+            user_ids=np.full(len(candidate_items), user_id),
+            item_ids=candidate_items,
+            num_threads=20,
+        )
+
+        pop_scores = self.popularity_weights[candidate_items]
+
+        combined_scores = alpha * scores + (1 - alpha) * pop_scores
+
+        top_k_indices = np.argsort(-combined_scores)[:k]
+
+        return candidate_items[top_k_indices]
+
+    def predict2(self, user_id, k):
+        user_embedding = self.embed_user(user_id)
+        indices, scores = self.searcher.search(user_embedding)
+
+        sorted_indices = np.argsort(-scores)
+        sorted_item_indices = [indices[i] for i in sorted_indices]
+
+        return sorted_item_indices[:k]
+
+    # -----------------=[ Recommendation ]=-----------------
+    def recommend(self, user_id, k):
+        return self.predict2(user_id, k)
+
+    # -----------------=[ For Fun ]=------------------
+    def similar_games(self, game_title, k):
+        searcher = (scann.scann_ops_pybind.builder(
+            self.model.item_embeddings, k, "dot_product").score_ah(1).build())
+
+        game_id = self.games[self.games["title"] ==
+                             game_title]["app_id"].values[0]
+
+        game_index = self.game_id_to_index[game_id]
+        game_embedding = self.model.item_embeddings[game_index]
+        indices, scores = searcher.search(game_embedding)
+
+        return [self.index_to_game_id[idx] for idx in indices]
 
 
 if __name__ == "__main__":
-  model = LightFMscaNN()
-  print(list(map(model.game_id_to_title, model.similar_games('ELDEN RING', 5))))
+    model = LightFMscaNN(10)
+
+    import sys
+
+    sys.path.append("../")
+
+    from metrics import *
+
+    print(test_metrics(model, 10))

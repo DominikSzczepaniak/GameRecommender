@@ -3,12 +3,13 @@
 
 import os
 import random
+from math import ceil
+
 import numpy as np
 import tensorflow as tf
+from scipy.sparse import load_npz
 from tensorflow import keras
 from tensorflow.keras import layers
-from scipy.sparse import load_npz
-from math import ceil
 
 ##############################################################################
 # 1. Parametry konfiguracyjne
@@ -31,6 +32,7 @@ print("[INFO] Wczytano macierz z:", NPZ_FILE)
 print("       Kształt (num_users, num_items):", csr_mat.shape)
 print("       Niezerowych interakcji (1):", csr_mat.nnz)
 
+
 ##############################################################################
 # 3. Generator pairwise (BPR): zwraca (user, pos_item, neg_item)
 ##############################################################################
@@ -41,7 +43,11 @@ class BprInteractionGenerator(keras.utils.Sequence):
     Dodatkowo zwracamy dummy_labels, bo Keras wymaga (X, y).
     """
 
-    def __init__(self, csr_matrix, batch_size=1024, shuffle_users=True, **kwargs):
+    def __init__(self,
+                 csr_matrix,
+                 batch_size=1024,
+                 shuffle_users=True,
+                 **kwargs):
         super().__init__(**kwargs)
 
         self.csr_mat = csr_matrix
@@ -77,7 +83,7 @@ class BprInteractionGenerator(keras.utils.Sequence):
             self._user_idx += 1
 
             row_start = self.csr_mat.indptr[user]
-            row_end = self.csr_mat.indptr[user+1]
+            row_end = self.csr_mat.indptr[user + 1]
             pos_items = self.csr_mat.indices[row_start:row_end]
 
             for pos_item in pos_items:
@@ -116,25 +122,21 @@ class BprInteractionGenerator(keras.utils.Sequence):
 #    + Model BPR, który wczytuje (user, pos_item, neg_item) i zwraca [pos_score, neg_score]
 ##############################################################################
 
-user_input = keras.Input(shape=(1,), name="user_id")
-item_input = keras.Input(shape=(1,), name="item_id")
+user_input = keras.Input(shape=(1, ), name="user_id")
+item_input = keras.Input(shape=(1, ), name="item_id")
 
-user_embedding_wide = layers.Embedding(
-    input_dim=num_users,
-    output_dim=1,
-    input_length=1
-)(user_input)
+user_embedding_wide = layers.Embedding(input_dim=num_users,
+                                       output_dim=1,
+                                       input_length=1)(user_input)
 user_embedding_wide = layers.Flatten()(user_embedding_wide)
 
-item_embedding_wide = layers.Embedding(
-    input_dim=num_items,
-    output_dim=1,
-    input_length=1
-)(item_input)
+item_embedding_wide = layers.Embedding(input_dim=num_items,
+                                       output_dim=1,
+                                       input_length=1)(item_input)
 item_embedding_wide = layers.Flatten()(item_embedding_wide)
 
 wide_part = layers.Concatenate()([user_embedding_wide, item_embedding_wide])
-wide_part = layers.Dense(1, activation='linear', name='wide_linear')(wide_part)
+wide_part = layers.Dense(1, activation="linear", name="wide_linear")(wide_part)
 
 embedding_dim = EMBEDDING_DIM
 
@@ -142,7 +144,7 @@ user_embedding_deep = layers.Embedding(
     input_dim=num_users,
     output_dim=embedding_dim,
     input_length=1,
-    name='user_embedding_deep'
+    name="user_embedding_deep",
 )(user_input)
 user_embedding_deep = layers.Flatten()(user_embedding_deep)
 
@@ -150,27 +152,25 @@ item_embedding_deep = layers.Embedding(
     input_dim=num_items,
     output_dim=embedding_dim,
     input_length=1,
-    name='game_embedding_deep'
+    name="game_embedding_deep",
 )(item_input)
 item_embedding_deep = layers.Flatten()(item_embedding_deep)
 
 deep_concat = layers.Concatenate()([user_embedding_deep, item_embedding_deep])
-deep = layers.Dense(64, activation='relu')(deep_concat)
-deep = layers.Dense(32, activation='relu')(deep)
-deep = layers.Dense(16, activation='relu')(deep)
-deep_part = layers.Dense(1, activation='linear', name='deep_linear')(deep)
+deep = layers.Dense(64, activation="relu")(deep_concat)
+deep = layers.Dense(32, activation="relu")(deep)
+deep = layers.Dense(16, activation="relu")(deep)
+deep_part = layers.Dense(1, activation="linear", name="deep_linear")(deep)
 
 score_out = layers.Add()([wide_part, deep_part])
 
-score_model = keras.Model(
-    inputs=[user_input, item_input],
-    outputs=score_out,
-    name="score_model"
-)
+score_model = keras.Model(inputs=[user_input, item_input],
+                          outputs=score_out,
+                          name="score_model")
 
-user_bpr_input = keras.Input(shape=(1,), name="user_id")
-pos_item_bpr_input = keras.Input(shape=(1,), name="pos_item_id")
-neg_item_bpr_input = keras.Input(shape=(1,), name="neg_item_id")
+user_bpr_input = keras.Input(shape=(1, ), name="user_id")
+pos_item_bpr_input = keras.Input(shape=(1, ), name="pos_item_id")
+neg_item_bpr_input = keras.Input(shape=(1, ), name="neg_item_id")
 
 score_pos = score_model([user_bpr_input, pos_item_bpr_input])
 score_neg = score_model([user_bpr_input, neg_item_bpr_input])
@@ -180,7 +180,7 @@ bpr_output = layers.Concatenate(axis=1)([score_pos, score_neg])
 bpr_model = keras.Model(
     inputs=[user_bpr_input, pos_item_bpr_input, neg_item_bpr_input],
     outputs=bpr_output,
-    name="bpr_model"
+    name="bpr_model",
 )
 
 
@@ -198,10 +198,7 @@ def bpr_loss(y_true, y_pred):
     return -tf.reduce_mean(tf.math.log_sigmoid(score_pos - score_neg))
 
 
-bpr_model.compile(
-    optimizer='adam',
-    loss=bpr_loss
-)
+bpr_model.compile(optimizer="adam", loss=bpr_loss)
 
 bpr_model.summary()
 
@@ -209,21 +206,17 @@ bpr_model.summary()
 # 6. Trenowanie modelu BPR
 ##############################################################################
 
-train_gen = BprInteractionGenerator(
-    csr_matrix=csr_mat,
-    batch_size=BATCH_SIZE,
-    shuffle_users=True
-)
+train_gen = BprInteractionGenerator(csr_matrix=csr_mat,
+                                    batch_size=BATCH_SIZE,
+                                    shuffle_users=True)
 
 steps_per_epoch = len(train_gen)
 print(f"[INFO] steps_per_epoch = {steps_per_epoch}")
 
-bpr_model.fit(
-    train_gen,
-    epochs=EPOCHS,
-    steps_per_epoch=steps_per_epoch,
-    verbose=1
-)
+bpr_model.fit(train_gen,
+              epochs=EPOCHS,
+              steps_per_epoch=steps_per_epoch,
+              verbose=1)
 
 ##############################################################################
 # 7. Zapis wytrenowanego modelu BPR
