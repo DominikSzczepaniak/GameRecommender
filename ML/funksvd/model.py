@@ -1,5 +1,15 @@
+<<<<<<< HEAD
 import os
 import random
+=======
+from scipy.sparse import load_npz, coo_matrix, vstack, save_npz
+import numpy as np 
+import os 
+import pandas as pd
+from tqdm import tqdm
+import torch
+import joblib
+>>>>>>> c2743f9 (github model for funksvd)
 
 import joblib
 import numpy as np
@@ -18,9 +28,15 @@ class FunkSVD:
         self.save_dir = save_dir
         self.rating_matrix_path = rating_matrix_path
         self.data_directory = data_directory
+<<<<<<< HEAD
         self.games = None
         self.users = None
         self.base_dir = os.path.dirname(os.path.abspath(__file__))
+=======
+        self.games = None 
+        self.users = None 
+        self.base_dir = "./"#os.path.dirname(os.path.abspath(__file__))
+>>>>>>> c2743f9 (github model for funksvd)
         # self.load_mappings()
         os.makedirs(os.path.join(self.base_dir, self.save_dir), exist_ok=True)
         # self.load_recommendations_count()
@@ -30,17 +46,37 @@ class FunkSVD:
         parameters: user_id after mapping, amount of games to recommend
         returns: list of recommended games in form of game data (app_id, name, genres, etc.)
         """
+<<<<<<< HEAD
         if not hasattr(self, "user_matrix"):
             self.user_matrix, self.games_matrix = self.load_model()
             self.user_matrix = torch.tensor(self.user_matrix)
             self.games_matrix = torch.tensor(self.games_matrix)
+=======
+        if not self.loaded:
+            user_matrix, games_matrix, user_biases, item_biases, self.global_mean = self.load_model()
+        
+            self.user_matrix = torch.tensor(user_matrix)
+            self.games_matrix = torch.tensor(games_matrix)
+            self.user_biases = torch.tensor(user_biases)
+            self.item_biases = torch.tensor(item_biases)
+            self.loaded = True 
+>>>>>>> c2743f9 (github model for funksvd)
 
         self.n_games = self.games_matrix.shape[0]
         self.n_users = self.user_matrix.shape[0]
 
         user_vector = self.user_matrix[user_id, :]
+<<<<<<< HEAD
         predicted_ratings = torch.matmul(user_vector,
                                          self.games_matrix.T).numpy()
+=======
+        predicted_ratings = (
+            self.global_mean
+            + self.user_biases[user_id].item()
+            + self.item_biases.numpy()
+            + torch.matmul(user_vector, self.games_matrix.T).numpy()
+        )
+>>>>>>> c2743f9 (github model for funksvd)
 
         played_games = set(self.get_user_history(user_id))
         all_games = set(range(self.n_games))
@@ -96,6 +132,7 @@ class FunkSVD:
 
         for epoch in range(num_epochs):
             total_error = 0
+<<<<<<< HEAD
             loop = tqdm(
                 zip(
                     self.rating_matrix_sparse.row,
@@ -122,9 +159,36 @@ class FunkSVD:
             print(
                 f"Epoch {epoch + 1}/{num_epochs}, Total Error: {total_error:.4f}, accuracy: {1 - total_error / len(self.rating_matrix_sparse.data):.4f}, rmse: {rmse:.4f}"
             )
+=======
+
+            data = list(zip(self.rating_matrix_sparse.row, self.rating_matrix_sparse.col, self.rating_matrix_sparse.data))
+            np.random.shuffle(data)
+
+            loop = tqdm(data, total=len(data))
+            for user_idx, game_idx, rating in loop:
+                pred = global_mean + user_biases[user_idx] + item_biases[game_idx]
+                pred += np.dot(user_matrix[user_idx], games_matrix[game_idx])
+                error = rating - pred
+
+                user_biases[user_idx] += learning_rate * (error - regularization * user_biases[user_idx])
+                item_biases[game_idx] += learning_rate * (error - regularization * item_biases[game_idx])
+
+                user_grad = error * games_matrix[game_idx] - regularization * user_matrix[user_idx]
+                item_grad = error * user_matrix[user_idx] - regularization * games_matrix[game_idx]
+
+                user_matrix[user_idx] += learning_rate * user_grad
+                games_matrix[game_idx] += learning_rate * item_grad
+
+                total_error += error ** 2
+
+            rmse = np.sqrt(total_error / len(data))
+            print(f"Epoch {epoch + 1}/{num_epochs}, Total Error: {total_error:.4f}, RMSE: {rmse:.4f}")
+
+>>>>>>> c2743f9 (github model for funksvd)
             if (epoch + 1) % save_freq == 0:
                 self.save_model(user_matrix, games_matrix)
 
+<<<<<<< HEAD
     def train_one_user(
         self,
         user_id,
@@ -136,6 +200,12 @@ class FunkSVD:
         latent_features=10,
     ):
         """
+=======
+        print("Training complete.")
+
+    def train_one_user(self, user_id, learning_rate=0.001, num_epochs=50, regularization = 0.1, save_freq=1, start_over=False, latent_features=10):
+        '''
+>>>>>>> c2743f9 (github model for funksvd)
         Train only a specific user's vector in the user matrix.
 
         Parameters:
@@ -201,10 +271,17 @@ class FunkSVD:
         if os.path.exists(user_path) and os.path.exists(games_path):
             user_matrix = np.load(user_path)
             games_matrix = np.load(games_path)
+<<<<<<< HEAD
             # user_biases = np.load(user_biases_path)
             # item_biases = np.load(item_biases_path)
             # global_mean = np.load(global_mean_path)
             return user_matrix, games_matrix  # , user_biases, item_biases, global_mean
+=======
+            user_biases = np.load(user_biases_path)
+            item_biases = np.load(item_biases_path)
+            global_mean = np.load(global_mean_path)
+            return user_matrix, games_matrix, user_biases, item_biases, global_mean
+>>>>>>> c2743f9 (github model for funksvd)
         else:
             raise Exception("Model files not found.")
 
@@ -424,6 +501,7 @@ class Testing:
     rating_matrix_path: path to rating_matrix_sparse.npz or equivalent
     """
 
+<<<<<<< HEAD
     def __init__(self, data_directory, rating_matrix_path):
         self.model = FunkSVD(rating_matrix_path,
                              data_directory,
@@ -457,3 +535,13 @@ if __name__ == "__main__":
 
     # testing = Testing('../', '../train_and_test.npz')
     # print(testing.ask_for_recommendation(13022991, 10))
+=======
+    def ask_for_recommendation(self, user_id, amount):
+        return self.model.recommend(user_id, amount)
+    
+if __name__ == '__main__':
+    FunkSVD('data/train_and_test.npz', 'data', save_dir='model1').train(learning_rate=0.01, num_epochs=20, regularization=0.02, save_freq=1, start_over=True, latent_features=100)
+    FunkSVD('data/train_and_test.npz', 'data', save_dir='model1').train(learning_rate=0.005, num_epochs=10, regularization=0.02, save_freq=1, start_over=True, latent_features=100)
+    FunkSVD('data/train_and_test.npz', 'data', save_dir='model1').train(learning_rate=0.001, num_epochs=10, regularization=0.02, save_freq=1, start_over=True, latent_features=100)
+    
+>>>>>>> c2743f9 (github model for funksvd)
