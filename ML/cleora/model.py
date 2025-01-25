@@ -33,10 +33,15 @@ class CleoraRecommender:
             user_groups[row["u_id"]].append(f"item_{row['i_id']}")
 
         # Create generator instead of list
-        cleora_input = (" ".join(items) for items in user_groups.values())
+        cleora_input = (
+            f"user_{u} " + " ".join(items) 
+            for u, items in user_groups.items()
+        )
 
-        mat = SparseMatrix.from_iterator(cleora_input,
-                                         columns="complex::reflexive::product")
+        mat = SparseMatrix.from_iterator(
+            cleora_input,
+            columns="complex::hyperedges::star"  # Key change for star expansion
+        )
 
         embeddings = mat.initialize_deterministically(self.dim)
         for _ in range(self.iter):
@@ -44,15 +49,18 @@ class CleoraRecommender:
             embeddings /= np.linalg.norm(embeddings, axis=-1, keepdims=True)
 
         # Save model
-        self.item_ids = mat.entity_ids
-        self.item_embeddings = embeddings
-        self.user_to_items = {
-            u: set(items)
-            for u, items in user_groups.items()
-        }
+        item_mask = [e.startswith("item_") for e in mat.entity_ids]
+        self.item_embeddings = embeddings[item_mask]
+        self.item_ids = [e for e, mask in zip(mat.entity_ids, item_mask) if mask]
+
+        # Update the item_id_to_idx mapping
         self.item_id_to_idx = {
             item: idx
             for idx, item in enumerate(self.item_ids)
+        }
+        self.user_to_items = {
+            u: set(items)
+            for u, items in user_groups.items()
         }
 
         # Train KNN once
