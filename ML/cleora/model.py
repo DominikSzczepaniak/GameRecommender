@@ -32,7 +32,7 @@ class CleoraRecommender:
         for _, row in df[df["rating"] == 1].iterrows():
             user_groups[row["u_id"]].append(f"item_{row['i_id']}")
 
-        # Create generator instead of list
+        # Create star-expansion input: "user_X item1 item2..."
         cleora_input = (
             f"user_{u} " + " ".join(items) 
             for u, items in user_groups.items()
@@ -40,18 +40,18 @@ class CleoraRecommender:
 
         mat = SparseMatrix.from_iterator(
             cleora_input,
-            columns="complex::hyperedges::star"  # Key change for star expansion
+            columns="complex::transient::reflexive"  # No embeddings for hyperedges
         )
 
+        # Now ALL embeddings will be items (no need for filtering later)
         embeddings = mat.initialize_deterministically(self.dim)
         for _ in range(self.iter):
             embeddings = mat.left_markov_propagate(embeddings)
             embeddings /= np.linalg.norm(embeddings, axis=-1, keepdims=True)
 
-        # Save model
-        item_mask = [e.startswith("item_") for e in mat.entity_ids]
-        self.item_embeddings = embeddings[item_mask]
-        self.item_ids = [e for e, mask in zip(mat.entity_ids, item_mask) if mask]
+        # Directly use all embeddings as items (hyperedge users were transient)
+        self.item_ids = mat.entity_ids
+        self.item_embeddings = embeddings
 
         # Update the item_id_to_idx mapping
         self.item_id_to_idx = {
