@@ -31,8 +31,9 @@ class LightFMscaNN:
                                                lines=True)
 
             self.interactions = load_npz("./data/train_and_test.npz").tocsr()
+            self.rest_test = load_npz("./data/rest_test.npz").tocsr()
 
-            self.load_model("64")
+            self.load_model('sixty4')
 
             unique_user_ids = self.users["user_id"].unique()
             unique_game_ids = self.games["app_id"].unique()
@@ -58,12 +59,12 @@ class LightFMscaNN:
                 for _, row in self.games.iterrows()
             }
 
-            # Fine tuned searcher
-            self.searcher = (scann.scann_ops_pybind.builder(
-                self.model.item_embeddings, k,
-                "dot_product").score_ah(6,
-                                        hash_type="lut256",
-                                        training_iterations=11).build())
+            # # Fine tuned searcher
+            # self.searcher = (scann.scann_ops_pybind.builder(
+            #     self.model.item_embeddings, k,
+            #     "dot_product").score_ah(6,
+            #                             hash_type="lut256",
+            #                             training_iterations=11).build())
 
             # Calculate popularity as interaction counts (train set only)
             train_popularity = np.array(
@@ -82,12 +83,12 @@ class LightFMscaNN:
     # ----------------=[ Model training ]=---------------
     def fit(self, name, epochs=100):
         for epoch in range(1, epochs + 1):
-            self.model.fit_partial(self.interactions, epochs=1, num_threads=15)
+            self.model.fit_partial(self.interactions, epochs=5, num_threads=20)
 
             val_recall = recall_at_k(self.model,
                                      self.rest_test,
                                      k=20,
-                                     num_threads=15).mean()
+                                     num_threads=20).mean()
 
             print(f"Epoch {epoch}: Value of Recall@20 = {val_recall:.4f}")
 
@@ -162,7 +163,7 @@ class LightFMscaNN:
 
     # -----------------=[ Recommendation ]=-----------------
     def recommend(self, user_id, k):
-        return self.predict2(user_id, k)
+        return self.predict(user_id, k)
 
     # -----------------=[ For Fun ]=------------------
     def similar_games(self, game_title, k):
@@ -178,9 +179,79 @@ class LightFMscaNN:
 
         return [self.index_to_game_id[idx] for idx in indices]
 
+    # -----------------=[ HYPER PARAMETERS ]=------------------
+
+    def fine_tune(self):
+        from hyperopt import STATUS_OK, hp
+
+        space = {
+            "no_components":
+            hp.choice("no_components", [64, 100]),
+            "loss":
+            hp.choice("loss", ["warp", "warp-kos", "bpr"]),
+            "learning_rate":
+            hp.loguniform("learning_rate", np.log(1e-4), np.log(0.1)),
+            "k":
+            hp.choice("k", [10, 20]),
+        }
+
+        def objective(params):
+            # Initialize model with sampled hyperparameters
+            model = LightFM(
+                no_components=params["no_components"],
+                loss=params["loss"],
+                k=params["k"],
+                learning_rate=params["learning_rate"],
+                random_state=42,
+            )
+
+            for _ in tqdm(range(30)):
+                model.fit_partial(self.interactions, num_threads=20)
+
+            val_recall = recall_at_k(model,
+                                     self.rest_test,
+                                     k=20,
+                                     num_threads=20).mean()
+
+            return {
+                "loss": -val_recall,
+                "status": STATUS_OK,
+                "params": params,
+            }
+
+        from hyperopt import Trials, fmin, tpe
+
+        trials = Trials()  # Track results
+        best_params = fmin(
+            fn=objective,  # Objective function
+            space=space,  # Search space
+            algo=tpe.
+            suggest,  # Optimization algorithm (Tree-structured Parzen Estimator)
+            max_evals=50,  # Number of trials (increase for better results)
+            trials=trials,  # Store results
+            verbose=True,  # Show progress
+        )
+
+        print("Best hyperparameters:", best_params)
+
+        self.model = LightFM(
+            no_components=best_params["no_components"],
+            loss=best_params["loss"],
+            k=best_params["k"],
+            user_alpha=best_params["user_alpha"],
+            item_alpha=best_params["item_alpha"],
+            learning_rate=best_params["learning_rate"],
+            random_state=42,
+        )
+
+        # Train longer (e.g., 100 epochs)
+        self.fit(name="tuned_model", epochs=300)
+
 
 if __name__ == "__main__":
     model = LightFMscaNN(10)
+
+    model.fit("sixty6", 100)
 
     import sys
 
@@ -188,4 +259,4 @@ if __name__ == "__main__":
 
     from metrics import *
 
-    print(test_metrics(model, 10))
+    print(test_metrics(model, 20))
