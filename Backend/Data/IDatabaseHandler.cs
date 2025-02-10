@@ -1,6 +1,6 @@
 ﻿using GameRecommender.Models;
 
-namespace Data;
+namespace GameRecommender.Data;
 
 public interface IDatabaseHandler
 {

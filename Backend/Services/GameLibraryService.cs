@@ -1,5 +1,5 @@
 using System.Text.RegularExpressions;
-using Data;
+using GameRecommender.Data;
 using GameRecommender.Interfaces;
 
 namespace GameRecommender.Services;
@@ -20,13 +20,13 @@ public class GameLibraryService(IDatabaseHandler databaseHandler) : IGameLibrary
         throw new ArgumentException("Invalid steam link or user not found");
     }
 
-    private List<string> GetSteamGamesFromXml(int userId, string steamId)
+    private async Task<List<GameData>> GetSteamGamesFromXml(int userId)
     {
-        string link = $"https://steamcommunity.com/profiles/{steamId}/games?tab=all&xml=1";
-        return new List<string>(); //TODO make request to link, parse XML, return all games as List
+        string steamId = await GetUserSteamId(userId);
+        return await SteamGameFetcher.GetSteamGamesFromXmlAsync(steamId);
     }
 
-    private Task AddGamesToUserLibrary(int userId, List<string> gamesToAdd)
+    private Task AddGamesToUserLibrary(int userId, List<GameData> gamesToAdd)
     {
         return new Task<int>(() => 1);
         //TODO create user games repository and add it into that. Later move repository into database
@@ -36,6 +36,11 @@ public class GameLibraryService(IDatabaseHandler databaseHandler) : IGameLibrary
     {
         var steamId = GetSteamId(steamProfileLink);
         await databaseHandler.SetUserSteamProfileId(userId, steamId);
-        await AddGamesToUserLibrary(userId, GetSteamGamesFromXml(userId, steamId));
+        await AddGamesToUserLibrary(userId, await GetSteamGamesFromXml(userId));
+    }
+
+    private async Task<String> GetUserSteamId(int userId)
+    {
+        return await Task.FromResult("1"); //TODO
     }
 }
