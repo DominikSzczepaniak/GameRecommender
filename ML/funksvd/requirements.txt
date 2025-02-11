@@ -1,0 +1,8 @@
+git+https://github.com/gbolmier/funk-svd
+torch
+numpy
+pandas
+matplotlib
+scikit-learn
+tqdm
+joblib

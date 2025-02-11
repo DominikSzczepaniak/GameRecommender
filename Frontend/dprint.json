@@ -1,0 +1,40 @@
+{
+  "typescript": {
+    "indentWidth": 2,
+    "useTabs": false,
+    "semiColons": "always",
+    "quoteStyle": "preferSingle",
+    "jsx.quoteStyle": "preferSingle",
+    "arrowFunction.useParentheses": "force",
+    "jsx.bracketPosition": "sameLine",
+    "jsx.forceNewLinesSurroundingContent": "true",
+    "typeLiteral.separatorKind": "comma",
+    "enumDeclaration.memberSpacing": "newLine",
+    "spaceAround": false,
+    "spaceSurroundingProperties": true,
+    "binaryExpression.spaceSurroundingBitwiseAndArithmeticOperator": false,
+    "commentLine.forceSpaceAfterSlashes": false,
+    "constructor.spaceBeforeParentheses": false,
+    "constructorType.spaceAfterNewKeyword": false,
+    "constructSignature.spaceAfterNewKeyword": false,
+    "doWhileStatement.spaceAfterWhileKeyword": false,
+    "exportDeclaration.spaceSurroundingNamedExports": true,
+    "forInStatement.spaceAfterForKeyword": false,
+    "forOfStatement.spaceAfterForKeyword": false,
+    "forStatement.spaceAfterForKeyword": false,
+    "forStatement.spaceAfterSemiColons": true,
+    "functionDeclaration.spaceBeforeParentheses": false,
+    "functionExpression.spaceBeforeParentheses": false,
+    "functionExpression.spaceAfterFunctionKeyword": true,
+    "getAccessor.spaceBeforeParentheses": false,
+    "jsxSelfClosingElement.spaceBeforeSlash": true,
+    "jsxExpressionContainer.spaceSurroundingExpression": false,
+    "whileStatement.spaceAfterWhileKeyword": false
+  },
+  "excludes": [
+    "**/node_modules"
+  ],
+  "plugins": [
+    "https://plugins.dprint.dev/typescript-0.93.3.wasm"
+  ]
+}

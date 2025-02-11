@@ -1,18 +1,30 @@
-import { useState } from 'react'
-import reactLogo from './assets/react.svg'
 import viteLogo from '/vite.svg'
-import { Button } from './components/ui/button'
+import { ThemeProvider } from '@/components/theme-provider'
+import { useState } from 'react'
 import { ThemeProvider } from "@/components/theme-provider"
+import { Route, Routes } from 'react-router-dom'
+import { Home } from 'lucide-react'
+import { Settings } from 'lucide-react'
 import Navbar from './components/Navbar'
+import Register from './pages/Register'
+import Login from './pages/Login'
 
 function App() {
-  const [count, setCount] = useState(0)
+  const [count, setCount] = useState(0);
 
   return (
     <ThemeProvider defaultTheme="dark" storageKey="vite-ui-theme">
-      <Navbar/>
+      <div>
+        <Navbar />
+        <Routes>
+          <Route path="/" element={<Home />} />
+          <Route path="/login" element={<Login />} />
+          <Route path="/register" element={<Register />} />
+          <Route path="/settings" element={<Settings />} />
+        </Routes>
+      </div>
     </ThemeProvider>
-  )
+  );
 }
 
-export default App
+export default App;
