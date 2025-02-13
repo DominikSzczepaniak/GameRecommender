@@ -27,14 +27,16 @@ public class UserController : Controller
     [HttpPost("register")]
     public async Task<IActionResult> Register([FromBody] User user)
     {
-        var registeredUser = await _userService.RegisterUser(user);
-        if (registeredUser == null)
+        try
         {
-            throw new NotImplementedException();
+            var registeredUser = await _userService.RegisterUser(user);
+            return Ok(registeredUser);
         }
-        return Ok(registeredUser);
+        catch (ArgumentException ex)
+        {
+            return Conflict(ex.Message);
+        }
     }
-
 
     [HttpPost("login")]
     public async Task<IActionResult> Login([FromBody] UserLoginModel userLogin)
@@ -43,7 +45,7 @@ public class UserController : Controller
 
         if (user == null)
         {
-            return Unauthorized();
+            return NotFound();
         }
 
         var token = GenerateJwtToken(user);

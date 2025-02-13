@@ -14,6 +14,10 @@ public class PostgresHandler : DbContext, IDatabaseHandler
 
     public async Task<User> RegisterUser(User user)
     {
+        if (Users.Any(u => u.Id == user.Id))
+        {
+            throw new ArgumentException("User already exists");
+        }
         await Users.AddAsync(user);
         await SaveChangesAsync();
         return user;
@@ -33,6 +37,10 @@ public class PostgresHandler : DbContext, IDatabaseHandler
 
     public async Task<bool> DeleteUser(User user)
     {
+        // if (!Users.Any(u => u.Id == user.Id))
+        // {
+        //     return false; //could be removed because if SaveChangesAsync() == 0 then we didnt delete anyone hence user didn't exist
+        // }
         Users.Remove(user);
         return await SaveChangesAsync() > 0;
     }
