@@ -1,4 +1,5 @@
-﻿using GameRecommender.Models;
+﻿using GameRecommender.Data;
+using GameRecommender.Models;
 using Npgsql;
 
 namespace Data;

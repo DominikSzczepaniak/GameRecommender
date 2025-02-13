@@ -1,6 +1,7 @@
 using System.Text;
 using Data;
 using GameRecommender.Controllers;
+using GameRecommender.Data;
 using GameRecommender.Interfaces;
 using GameRecommender.Services;
 using Microsoft.AspNetCore.Authentication.JwtBearer;

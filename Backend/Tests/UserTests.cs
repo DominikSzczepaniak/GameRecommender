@@ -1,8 +1,11 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Security.Claims;
+using System.Text;
 using System.Threading.Tasks;
+using Data;
 using GameRecommender.Controllers;
+using GameRecommender.Data;
 using GameRecommender.Interfaces;
 using GameRecommender.Models;
 using GameRecommender.Services;
@@ -18,22 +21,24 @@ namespace GameRecommender.Tests
     [TestFixture]
     public class UserControllerTests
     {
-        private Mock<UserService> _mockUserService;
+        private Mock<IDatabaseHandler> _mockDatabaseHandler;
+        private UserService _userService;
         private Mock<IConfiguration> _mockConfiguration;
         private UserController _controller;
 
         [SetUp]
         public void Setup()
         {
-            _mockUserService = new Mock<UserService>(MockBehavior.Strict);
             _mockConfiguration = new Mock<IConfiguration>();
             _mockConfiguration.Setup(c => c["Jwt:Secret"]).Returns("TestSecretKey");
             _mockConfiguration.Setup(c => c["Jwt:Issuer"]).Returns("TestIssuer");
             _mockConfiguration.Setup(c => c["Jwt:Audience"]).Returns("TestAudience");
 
-            _controller = new UserController(_mockUserService.Object, _mockConfiguration.Object);
+            _mockDatabaseHandler = new Mock<IDatabaseHandler>();
+            _userService = new UserService(_mockDatabaseHandler.Object);
 
-            // Mock HttpContext for Authorization
+            _controller = new UserController(_userService, _mockConfiguration.Object);
+
             var mockHttpContext = new Mock<HttpContext>();
             var mockClaimsPrincipal = new Mock<ClaimsPrincipal>();
             mockHttpContext.Setup(x => x.User).Returns(mockClaimsPrincipal.Object);
@@ -45,7 +50,7 @@ namespace GameRecommender.Tests
         {
             // Arrange
             var user = new User(Guid.NewGuid(), "testuser", "test@example.com", "password", new List<int>(), new Dictionary<int, bool>());
-            _mockUserService.Setup(service => service.RegisterUser(user)).ReturnsAsync(user);
+            _mockDatabaseHandler.Setup(service => service.RegisterUser(It.IsAny<User>())).ReturnsAsync(user);
 
             // Act
             var result = await _controller.Register(user);
@@ -62,7 +67,7 @@ namespace GameRecommender.Tests
             // Arrange
             var userLogin = new UserLoginModel { Username = "testuser", Password = "password" };
             var user = new User(Guid.NewGuid(), "testuser", "test@example.com", "password", new List<int>(), new Dictionary<int, bool>());
-            _mockUserService.Setup(service => service.LoginByUsername(userLogin.Username, userLogin.Password)).ReturnsAsync(user);
+            _mockDatabaseHandler.Setup(service => service.LoginByUsername(userLogin.Username, userLogin.Password)).ReturnsAsync(user);
 
             // Act
             var result = await _controller.Login(userLogin);
@@ -71,7 +76,6 @@ namespace GameRecommender.Tests
             ClassicAssert.IsInstanceOf<OkObjectResult>(result);
             var okResult = (OkObjectResult)result;
             ClassicAssert.NotNull(okResult.Value);
-            ClassicAssert.IsInstanceOf<object>(okResult.Value); // Check if it's an anonymous object with a "token" property
         }
 
         [Test]
@@ -79,7 +83,7 @@ namespace GameRecommender.Tests
         {
             // Arrange
             var userLogin = new UserLoginModel { Username = "testuser", Password = "wrongpassword" };
-            _mockUserService.Setup(service => service.LoginByUsername(userLogin.Username, userLogin.Password)).ReturnsAsync((User)null);
+            _mockDatabaseHandler.Setup(service => service.LoginByUsername(userLogin.Username, userLogin.Password)).ReturnsAsync((User)null);
 
             // Act
             var result = await _controller.Login(userLogin);
@@ -94,8 +98,9 @@ namespace GameRecommender.Tests
             // Arrange
             var userId = Guid.NewGuid();
             var user = new User(userId, "testuser", "test@example.com", "password", new List<int>(), new Dictionary<int, bool>());
-            _mockUserService.Setup(s => s.UpdateUser(user)).ReturnsAsync(user);
-            _controller.HttpContext.User.AddIdentity(new ClaimsIdentity(new[] { new Claim(ClaimTypes.NameIdentifier, userId.ToString()) }));
+            _mockDatabaseHandler.Setup(s => s.UpdateUser(It.IsAny<User>())).ReturnsAsync(user);
+
+            _controller.HttpContext.User = new ClaimsPrincipal(new ClaimsIdentity(new[] { new Claim(ClaimTypes.NameIdentifier, userId.ToString()) }));
 
             // Act
             var result = await _controller.UpdateUser(user);
@@ -110,7 +115,8 @@ namespace GameRecommender.Tests
             // Arrange
             var userIdFromToken = Guid.NewGuid();
             var user = new User(Guid.NewGuid(), "testuser", "test@example.com", "password", new List<int>(), new Dictionary<int, bool>());
-            _controller.HttpContext.User.AddIdentity(new ClaimsIdentity(new[] { new Claim(ClaimTypes.NameIdentifier, userIdFromToken.ToString()) }));
+
+            _controller.HttpContext.User = new ClaimsPrincipal(new ClaimsIdentity(new[] { new Claim(ClaimTypes.NameIdentifier, userIdFromToken.ToString()) }));
 
             // Act
             var result = await _controller.UpdateUser(user);
@@ -124,8 +130,10 @@ namespace GameRecommender.Tests
         {
             // Arrange
             var userId = Guid.NewGuid();
-            _mockUserService.Setup(s => s.DeleteUser(It.IsAny<User>())).ReturnsAsync(true); // Any User object as it's only using the Id
-            _controller.HttpContext.User.AddIdentity(new ClaimsIdentity(new[] { new Claim(ClaimTypes.NameIdentifier, userId.ToString()) }));
+            var userToDelete = new User(userId, "testuser", "test@example.com", "password", new List<int>(), new Dictionary<int, bool>());
+            _mockDatabaseHandler.Setup(s => s.DeleteUser(It.IsAny<User>())).ReturnsAsync(true);
+
+            _controller.HttpContext.User = new ClaimsPrincipal(new ClaimsIdentity(new[] { new Claim(ClaimTypes.NameIdentifier, userId.ToString()) }));
 
             // Act
             var result = await _controller.DeleteUser();
@@ -139,8 +147,9 @@ namespace GameRecommender.Tests
         {
             // Arrange
             var userId = Guid.NewGuid();
-            _mockUserService.Setup(s => s.DeleteUser(It.IsAny<User>())).ReturnsAsync(false);
-            _controller.HttpContext.User.AddIdentity(new ClaimsIdentity(new[] { new Claim(ClaimTypes.NameIdentifier, userId.ToString()) }));
+            _mockDatabaseHandler.Setup(s => s.DeleteUser(It.IsAny<User>())).ReturnsAsync(false);
+
+            _controller.HttpContext.User = new ClaimsPrincipal(new ClaimsIdentity(new[] { new Claim(ClaimTypes.NameIdentifier, userId.ToString()) }));
 
             // Act
             var result = await _controller.DeleteUser();
@@ -153,7 +162,7 @@ namespace GameRecommender.Tests
         public async Task DeleteUser_InvalidUserIdInToken_ReturnsBadRequest()
         {
             // Arrange
-            _controller.HttpContext.User.AddIdentity(new ClaimsIdentity(new[] { new Claim(ClaimTypes.NameIdentifier, "invalid-guid") }));
+            _controller.HttpContext.User = new ClaimsPrincipal(new ClaimsIdentity(new[] { new Claim(ClaimTypes.NameIdentifier, "invalid-guid") }));
 
             // Act
             var result = await _controller.DeleteUser();
