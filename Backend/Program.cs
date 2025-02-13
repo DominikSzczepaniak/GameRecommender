@@ -4,6 +4,7 @@ using GameRecommender.Controllers;
 using GameRecommender.Data;
 using GameRecommender.Interfaces;
 using GameRecommender.Services;
+using GameRecommender.Tests;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
@@ -29,6 +30,8 @@ class Program
         builder.Services.AddSingleton<IDatabaseHandler, PostgresHandler>();
         builder.Services.AddSingleton<IUserService, UserService>();
         builder.Services.AddSingleton<UserController>();
+        builder.Services.AddSingleton<IGameService, GameService>();
+        builder.Services.AddSingleton<GameController>();
 
         // ------------
 

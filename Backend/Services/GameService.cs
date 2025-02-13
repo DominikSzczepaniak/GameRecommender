@@ -1,7 +1,7 @@
 using GameRecommender.Data;
 using GameRecommender.Interfaces;
 
-namespace GameRecommender.Tests;
+namespace GameRecommender.Services;
 
 public class GameService(IDatabaseHandler databaseConnection) : IGameService
 {
