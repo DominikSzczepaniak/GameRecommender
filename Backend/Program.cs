@@ -13,7 +13,9 @@ class Program
     public static void Main()
     {
         var builder = WebApplication.CreateBuilder();
+        //TODO load all game mappings (appId -> name)
 
+        // -------------
         // Database settings
         var connectionString = builder.Configuration.GetSection("ConnectionString").Get<String>();
         builder.Services.AddDbContext<ApplicationDbContext>(options =>

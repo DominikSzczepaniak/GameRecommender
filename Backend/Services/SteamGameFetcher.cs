@@ -49,6 +49,7 @@ public class SteamGameFetcher
                 string appId = gameElement.Element("appID")?.Value ?? "";
 
                 string name = gameElement.Element("name")?.Value ?? "";
+
                 double hoursOnRecord = 0.0;
 
                 XElement hoursElement = gameElement.Element("hoursOnRecord");

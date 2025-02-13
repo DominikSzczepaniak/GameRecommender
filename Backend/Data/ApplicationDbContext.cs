@@ -31,5 +31,6 @@ public class ApplicationDbContext : DbContext
             .HasForeignKey(ug => ug.UserId)
             .OnDelete(DeleteBehavior.Cascade);
 
+        modelBuilder.Entity<AppIdToName>().HasKey(atn => new { atn.AppId });
     }
 }

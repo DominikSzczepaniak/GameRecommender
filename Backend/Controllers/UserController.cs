@@ -1,5 +1,6 @@
 using System.Security.Claims;
 using System.Text;
+using GameRecommender.Interfaces;
 using GameRecommender.Models;
 using GameRecommender.Services;
 using Microsoft.AspNetCore.Authorization;
@@ -12,11 +13,11 @@ namespace GameRecommender.Controllers;
 [Route("[controller]")] 
 public class UserController : Controller
 {
-    private readonly UserService _userService;
+    private readonly IUserService _userService;
     private readonly IConfiguration _configuration;
     private readonly string _jwtSecret;
 
-    public UserController(UserService userService, IConfiguration configuration)
+    public UserController(IUserService userService, IConfiguration configuration)
     {
         _userService = userService;
         _configuration = configuration;
