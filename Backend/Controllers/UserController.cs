@@ -1,16 +1,10 @@
+using System.Security.Claims;
 using System.Text;
 using GameRecommender.Models;
 using GameRecommender.Services;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
-using Microsoft.AspNetCore.Authentication.JwtBearer;
-using Microsoft.AspNetCore.Authorization;
-using Microsoft.AspNetCore.Builder;
-using Microsoft.AspNetCore.Mvc;
-using Microsoft.Extensions.Configuration;
-using Microsoft.Extensions.DependencyInjection;
 using Microsoft.IdentityModel.Tokens;
-using System.Text;
 
 namespace GameRecommender.Controllers;
 
@@ -32,14 +26,19 @@ public class UserController : Controller
     [HttpPost("register")]
     public async Task<IActionResult> Register([FromBody] User user)
     {
-        return Ok();
+        var registeredUser = await _userService.RegisterUser(user);
+        if (registeredUser == null)
+        {
+            throw new NotImplementedException();
+        }
+        return Ok(registeredUser);
     }
 
 
     [HttpPost("login")]
     public async Task<IActionResult> Login([FromBody] UserLoginModel userLogin)
     {
-        var user = await _userService.Login(userLogin.Username, userLogin.Password);
+        var user = await _userService.LoginByUsername(userLogin.Username, userLogin.Password);
 
         if (user == null)
         {
@@ -50,55 +49,60 @@ public class UserController : Controller
         return Ok(new { token });
     }
 
+    [Authorize]
+    [HttpPut("update")]
+    public async Task<IActionResult> UpdateUser([FromBody] User user)
+    {
+        var userIdFromToken = User.FindFirstValue(System.Security.Claims.ClaimTypes.NameIdentifier);
+        if (!Guid.TryParse(userIdFromToken, out Guid userId))
+        {
+            return BadRequest("Invalid user ID in token.");
+        }
+
+        if (user.Id != userId)
+        {
+            return Forbid("You are not authorized to update this user.");
+        }
+
+        await _userService.UpdateUser(user);
+        return Ok("User updated successfully.");
+    }
+
+    [Authorize]
+    [HttpDelete("delete")]
+    public async Task<IActionResult> DeleteUser()
+    {
+        var userIdFromToken = User.FindFirstValue(System.Security.Claims.ClaimTypes.NameIdentifier);
+        if (!Guid.TryParse(userIdFromToken, out Guid userId))
+        {
+            return BadRequest("Invalid user ID in token.");
+        }
+
+        var userToDelete = new User(userId, "", "", "", new List<int>(), new Dictionary<int, bool>()); // Create a user object with ID
+        var result = await _userService.DeleteUser(userToDelete);
+
+        if (result)
+        {
+            return Ok("User deleted successfully.");
+        }
+        return NotFound("User not found.");
+    }
+
     private string GenerateJwtToken(User user)
     {
         var securityKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(_jwtSecret));
         var credentials = new SigningCredentials(securityKey, SecurityAlgorithms.HmacSha256);
 
         var token = new System.IdentityModel.Tokens.Jwt.JwtSecurityToken(
-            issuer: _configuration["Jwt:Issuer"], // From configuration
-            audience: _configuration["Jwt:Audience"], // From configuration
+            issuer: _configuration["Jwt:Issuer"],
+            audience: _configuration["Jwt:Audience"],
             claims: new[] {
                 new System.Security.Claims.Claim(System.Security.Claims.ClaimTypes.NameIdentifier, user.Id.ToString()),
                 new System.Security.Claims.Claim(System.Security.Claims.ClaimTypes.Name, user.Username),
-                // Add other claims as needed (e.g., roles)
             },
-            expires: DateTime.Now.AddDays(7), // Set token expiration
+            expires: DateTime.Now.AddDays(7),
             signingCredentials: credentials);
 
         return new System.IdentityModel.Tokens.Jwt.JwtSecurityTokenHandler().WriteToken(token);
-    }
-
-
-
-
-    [HttpGet("userByUsername/{username}/{password}")]
-    public async Task<User> GetUserByUsername(string username, string password)
-    {
-        return await userService.GetUserByUsername(username, password);
-    }
-    [HttpPost("registerUser/{username}/{email}/{password}")]
-    public async Task<User> RegisterUser(string username, string email, string password)
-    {
-        return await userService.RegisterUser(username, email, password);
-    }
-    [HttpPut("updateUser/{id}/{username}/{email}/{password}")]
-    public async Task<User> UpdateUser(int id, string username, string email, string password)
-    {
-        return await userService.UpdateUser(id, username, email, password);
-    }
-    [HttpDelete("deleteUser/{username}/{email}/{password}")]
-    public async Task<User> DeleteUser(string username, string email, string password)
-    {
-        return await userService.DeleteUser(username, email, password);
-
-
-
-    // Example of a protected endpoint
-    [Authorize]
-    [HttpGet("protected")]
-    public IActionResult ProtectedResource()
-    {
-        return Ok("This is a protected resource!");
     }
 }

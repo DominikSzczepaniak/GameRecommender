@@ -25,17 +25,17 @@ public class PostgresConnection(PostgresConnectionPool connectionPool) : IDataba
         throw new NotImplementedException();
     }
 
-    public Task<User> LoginByEmail(string email, string password)
-    {
-        throw new NotImplementedException();
-    }
-
-    public Task UpdateUser(User user)
+    public Task<User> UpdateUser(User user)
     {
         throw new NotImplementedException();
     }
 
     public Task<bool> DeleteUser(User user)
+    {
+        throw new NotImplementedException();
+    }
+
+    public Task SetUserSteamProfileId(int userId, string steamProfileId)
     {
         throw new NotImplementedException();
     }

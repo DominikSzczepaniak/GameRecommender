@@ -11,18 +11,18 @@ public class UserService(IDatabaseHandler databaseConnection) : IUserService
         return await databaseConnection.LoginByUsername(username, password);
     }
 
-    public async Task<User> RegisterUser(string username, string email, string password)
+    public async Task<User> RegisterUser(User user)
     {
-        return await databaseConnection.RegisterUser(username, email, password);
+        return await databaseConnection.RegisterUser(user);
     }
 
-    public async Task<User> UpdateUser(int id, string username, string email, string password)
+    public async Task<User> UpdateUser(User user)
     {
-        return await databaseConnection.UpdateUser(id, username, email, password);
+        return await databaseConnection.UpdateUser(user);
     }
 
-    public async Task<User> DeleteUser(string username, string email, string password)
+    public async Task<bool> DeleteUser(User user)
     {
-        return await databaseConnection.DeleteUser(username, email, password);
+        return await databaseConnection.DeleteUser(user);
     }
 }
