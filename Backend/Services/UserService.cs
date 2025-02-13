@@ -6,14 +6,9 @@ namespace GameRecommender.Services;
 
 public class UserService(IDatabaseHandler databaseConnection) : IUserService
 {
-    public async Task<User> GetUserByUsername(string username, string password)
+    public async Task<User> LoginByUsername(string username, string password)
     {
-        return await databaseConnection.GetUserByUsername(username, password);
-    }
-
-    public async Task<User> GetUserByEmail(string email, string password)
-    {
-        return await databaseConnection.GetUserByEmail(email, password);
+        return await databaseConnection.LoginByUsername(username, password);
     }
 
     public async Task<User> RegisterUser(string username, string email, string password)
