@@ -1,8 +1,7 @@
-﻿using GameRecommender.Data;
-using GameRecommender.Models;
+﻿using GameRecommender.Models;
 using Npgsql;
 
-namespace Data;
+namespace GameRecommender.Data;
 
 public class PostgresConnection(PostgresConnectionPool connectionPool) : IDatabaseHandler, IDisposable
 {

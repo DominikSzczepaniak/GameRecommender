@@ -1,5 +1,5 @@
 using System.Text.RegularExpressions;
-using Data;
+using GameRecommender.Data;
 using GameRecommender.Interfaces;
 
 namespace GameRecommender.Services;

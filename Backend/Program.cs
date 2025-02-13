@@ -1,5 +1,5 @@
 using System.Text;
-using Data;
+using GameRecommender.Data;
 using GameRecommender.Controllers;
 using GameRecommender.Data;
 using GameRecommender.Interfaces;

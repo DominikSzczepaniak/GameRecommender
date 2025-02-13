@@ -1,7 +1,7 @@
 ﻿using System.Collections.Concurrent;
 using Npgsql;
 
-namespace Data;
+namespace GameRecommender.Data;
 
 public class PostgresConnectionPool
 {

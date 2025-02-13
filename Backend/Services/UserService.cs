@@ -1,4 +1,4 @@
-﻿using Data;
+﻿using GameRecommender.Data;
 using GameRecommender.Interfaces;
 using GameRecommender.Models;
 
