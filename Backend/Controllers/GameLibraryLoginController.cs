@@ -7,7 +7,7 @@ namespace GameRecommender.Controllers;
 public class GameLibraryLoginController(IGameLibrary gameLibrary) : Controller
 {
     [HttpGet]
-    public async Task<IActionResult> GetSteamProfile(int userId, string steamLink)
+    public async Task<IActionResult> GetSteamProfile(Guid userId, string steamLink)
     {
         try
         {

@@ -5,6 +5,7 @@ using GameRecommender.Data;
 using GameRecommender.Interfaces;
 using GameRecommender.Services;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
+using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
 
 class Program
@@ -15,13 +16,15 @@ class Program
 
         // Database settings
         var connectionString = builder.Configuration.GetSection("ConnectionString").Get<String>();
-        var maxPoolSize = 10;
+        builder.Services.AddDbContext<ApplicationDbContext>(options =>
+            options.UseNpgsql(builder.Configuration.GetConnectionString("DefaultConnection")));
+
+        builder.Services.AddScoped<IDatabaseHandler, PostgresHandler>();
         //
 
         // ------------
         //Dependency injection
-        builder.Services.AddSingleton(new PostgresConnectionPool(connectionString, maxPoolSize));
-        builder.Services.AddSingleton<IDatabaseHandler, PostgresConnection>();
+        builder.Services.AddSingleton<IDatabaseHandler, PostgresHandler>();
         builder.Services.AddSingleton<IUserService, UserService>();
         builder.Services.AddSingleton<UserController>();
 

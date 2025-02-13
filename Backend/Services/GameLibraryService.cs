@@ -20,27 +20,26 @@ public class GameLibraryService(IDatabaseHandler databaseHandler) : IGameLibrary
         throw new ArgumentException("Invalid steam link or user not found");
     }
 
-    private async Task<List<GameData>> GetSteamGamesFromXml(int userId)
+    private async Task<List<GameData>> GetSteamGamesFromXml(Guid userId)
     {
         string steamId = await GetUserSteamId(userId);
         return await SteamGameFetcher.GetSteamGamesFromXmlAsync(steamId);
     }
 
-    private Task AddGamesToUserLibrary(int userId, List<GameData> gamesToAdd)
+    private void AddGamesToUserLibrary(Guid userId, List<GameData> gamesToAdd)
     {
-        return new Task<int>(() => 1);
-        //TODO create user games repository and add it into that. Later move repository into database
+        gamesToAdd.ForEach(game => databaseHandler.AddGameToUserLibrary(userId, game.AppId, game.HoursOnRecord));
     }
 
-    public async Task SetUserSteamProfile(int userId, string steamProfileLink)
+    public async Task SetUserSteamProfile(Guid userId, string steamProfileLink)
     {
         var steamId = GetSteamId(steamProfileLink);
+        AddGamesToUserLibrary(userId, await GetSteamGamesFromXml(userId));
         await databaseHandler.SetUserSteamProfileId(userId, steamId);
-        await AddGamesToUserLibrary(userId, await GetSteamGamesFromXml(userId));
     }
 
-    private async Task<String> GetUserSteamId(int userId)
+    private async Task<String> GetUserSteamId(Guid userId)
     {
-        return await Task.FromResult("1"); //TODO
+        return await databaseHandler.GetUserSteamId(userId);
     }
 }

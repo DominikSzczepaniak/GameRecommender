@@ -7,7 +7,7 @@ namespace GameRecommender.Controllers;
 public class RecommendationRecieverController(IDockerRunner dockerRunner) : Controller
 {
     [HttpGet("{userId}/{engineNumber}")]
-    public async Task<IActionResult> GetRecommendations(int userId, int engineNumber)
+    public async Task<IActionResult> GetRecommendations(Guid userId, int engineNumber)
     {
         try
         {

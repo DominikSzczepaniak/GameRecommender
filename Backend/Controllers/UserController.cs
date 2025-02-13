@@ -78,7 +78,7 @@ public class UserController : Controller
             return BadRequest("Invalid user ID in token.");
         }
 
-        var userToDelete = new User(userId, "", "", "", new List<int>(), new Dictionary<int, bool>()); // Create a user object with ID
+        var userToDelete = new User(userId, "", "", ""); // Create a user object with ID
         var result = await _userService.DeleteUser(userToDelete);
 
         if (result)

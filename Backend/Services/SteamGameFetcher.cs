@@ -46,11 +46,10 @@ public class SteamGameFetcher
 
             foreach (XElement gameElement in doc.Descendants("game"))
             {
-                GameData game = new GameData();
+                string appId = gameElement.Element("appID")?.Value ?? "";
 
-                game.AppId = gameElement.Element("appID")?.Value ?? "";
-
-                game.Name = gameElement.Element("name")?.Value ?? "";
+                string name = gameElement.Element("name")?.Value ?? "";
+                double hoursOnRecord = 0.0;
 
                 XElement hoursElement = gameElement.Element("hoursOnRecord");
                 if (hoursElement != null)
@@ -63,20 +62,20 @@ public class SteamGameFetcher
 
                     if (double.TryParse(hoursString, NumberStyles.Float, CultureInfo.InvariantCulture, out double hours))
                     {
-                        game.HoursOnRecord = hours;
+                        hoursOnRecord = hours;
                     }
                     else
                     {
                         Console.WriteLine($"Error parsing hours: {hoursString}");
-                        game.HoursOnRecord = 0;
+                        hoursOnRecord = 0;
                     }
                 }
                 else
                 {
-                    game.HoursOnRecord = 0;
+                    hoursOnRecord = 0;
                 }
 
-                games.Add(game);
+                games.Add(new GameData(appId, name, hoursOnRecord));
             }
 
             return games;

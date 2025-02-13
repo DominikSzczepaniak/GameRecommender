@@ -41,7 +41,7 @@ namespace GameRecommender.Tests
         public async Task Register_ValidUser_ReturnsOkResult()
         {
             // Arrange
-            var user = new User(Guid.NewGuid(), "testuser", "test@example.com", "password", new List<int>(), new Dictionary<int, bool>());
+            var user = new User(Guid.NewGuid(), "testuser", "test@example.com", "password");
             _mockDatabaseHandler.Setup(service => service.RegisterUser(It.IsAny<User>())).ReturnsAsync(user);
 
             // Act
@@ -58,7 +58,7 @@ namespace GameRecommender.Tests
         {
             // Arrange
             var userLogin = new UserLoginModel { Username = "testuser", Password = "password" };
-            var user = new User(Guid.NewGuid(), "testuser", "test@example.com", "password", new List<int>(), new Dictionary<int, bool>());
+            var user = new User(Guid.NewGuid(), "testuser", "test@example.com", "password");
             _mockDatabaseHandler.Setup(service => service.LoginByUsername(userLogin.Username, userLogin.Password)).ReturnsAsync(user);
 
             // Act
@@ -89,7 +89,7 @@ namespace GameRecommender.Tests
         {
             // Arrange
             var userId = Guid.NewGuid();
-            var user = new User(userId, "testuser", "test@example.com", "password", new List<int>(), new Dictionary<int, bool>());
+            var user = new User(userId, "testuser", "test@example.com", "password");
             _mockDatabaseHandler.Setup(s => s.UpdateUser(It.IsAny<User>())).ReturnsAsync(user);
 
             _controller.HttpContext.User = new ClaimsPrincipal(new ClaimsIdentity(new[] { new Claim(ClaimTypes.NameIdentifier, userId.ToString()) }));
@@ -106,7 +106,7 @@ namespace GameRecommender.Tests
         {
             // Arrange
             var userIdFromToken = Guid.NewGuid();
-            var user = new User(Guid.NewGuid(), "testuser", "test@example.com", "password", new List<int>(), new Dictionary<int, bool>());
+            var user = new User(Guid.NewGuid(), "testuser", "test@example.com", "password");
 
             _controller.HttpContext.User = new ClaimsPrincipal(new ClaimsIdentity(new[] { new Claim(ClaimTypes.NameIdentifier, userIdFromToken.ToString()) }));
 
@@ -122,7 +122,7 @@ namespace GameRecommender.Tests
         {
             // Arrange
             var userId = Guid.NewGuid();
-            var userToDelete = new User(userId, "testuser", "test@example.com", "password", new List<int>(), new Dictionary<int, bool>());
+            var userToDelete = new User(userId, "testuser", "test@example.com", "password");
             _mockDatabaseHandler.Setup(s => s.DeleteUser(It.IsAny<User>())).ReturnsAsync(true);
 
             _controller.HttpContext.User = new ClaimsPrincipal(new ClaimsIdentity(new[] { new Claim(ClaimTypes.NameIdentifier, userId.ToString()) }));
