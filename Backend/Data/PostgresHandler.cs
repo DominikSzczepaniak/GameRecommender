@@ -92,4 +92,16 @@ public class PostgresHandler : DbContext, IDatabaseHandler
         List<GameData> result = (await Task.WhenAll(tasks)).ToList();
         return result;
     }
+
+    public Task AddOpinionForUserAndGame(Guid userId, string appId, bool opinion)
+    {
+        UserGames.Where(ug => ug.UserId == userId && ug.AppId == appId).ExecuteUpdateAsync(set => set.SetProperty(ug => ug.Opinion, opinion));
+        return SaveChangesAsync();
+    }
+
+    public Task AddAppIdToNameMapping(string appId, string name)
+    {
+        AppIdToNames.AddAsync(new AppIdToName(appId, name));
+        return SaveChangesAsync();
+    }
 }

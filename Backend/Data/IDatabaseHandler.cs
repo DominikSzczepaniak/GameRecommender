@@ -12,4 +12,6 @@ public interface IDatabaseHandler
     public Task<string> GetUserSteamId(Guid userId);
     public Task AddGameToUserLibrary(Guid userId, string appId, double playtime, bool? opinion = null);
     public Task<List<GameData>> GetUserGames(Guid userId);
+    public Task AddOpinionForUserAndGame(Guid userId, string appId, bool opinion);
+    public Task AddAppIdToNameMapping(string appId, string name);
 }
