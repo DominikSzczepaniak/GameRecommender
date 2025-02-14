@@ -1,4 +1,7 @@
+using System.Security.Claims;
 using GameRecommender.Interfaces;
+using GameRecommender.Models;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 
 namespace GameRecommender.Controllers;
@@ -6,12 +9,23 @@ namespace GameRecommender.Controllers;
 [Route("recommendations")]
 public class RecommendationRecieverController(IDockerRunner dockerRunner) : Controller
 {
-    [HttpGet("{userId}/{engineNumber}")]
-    public async Task<IActionResult> GetRecommendations(Guid userId, int engineNumber)
+    [Authorize]
+    [HttpPost("{engineNumber}")]
+    public async Task<IActionResult> GetRecommendations([FromBody] User user, int engineNumber)
     {
+        var userIdFromToken = User.FindFirstValue(System.Security.Claims.ClaimTypes.NameIdentifier);
+        if (!Guid.TryParse(userIdFromToken, out Guid userId))
+        {
+            return BadRequest("Invalid user ID in token.");
+        }
+
+        if (user.Id != userId)
+        {
+            return Forbid("You are not authorized to update this user.");
+        }
         try
         {
-            var result = await dockerRunner.GetRecommendations(userId, engineNumber);
+            var result = await dockerRunner.GetRecommendations(user.Id, engineNumber);
             return Ok(result);
         }
         catch (ArgumentException ex)
