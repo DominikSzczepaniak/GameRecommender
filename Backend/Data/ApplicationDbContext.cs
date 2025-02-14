@@ -22,10 +22,10 @@ public class ApplicationDbContext : DbContext
         modelBuilder.Entity<UserToSteamId>()
             .HasKey(us => us.UserId);
 
-        modelBuilder.Entity<UserGame>()
+        modelBuilder.Entity<UserGameDao>()
             .HasKey(ug => new { ug.UserId, ug.AppId });
 
-        modelBuilder.Entity<UserGame>()
+        modelBuilder.Entity<UserGameDao>()
             .HasOne(ug => ug.User)
             .WithMany()
             .HasForeignKey(ug => ug.UserId)

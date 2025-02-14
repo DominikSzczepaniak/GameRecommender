@@ -13,8 +13,8 @@ public class GameController : Controller
     private readonly IGameService _gameService;
 
     [Authorize]
-    [HttpPost("addGame/{appId}/{opinion}")]
-    public async Task<IActionResult> AddOpinionForUserAndGame([FromBody] User user, string appId, bool opinion)
+    [HttpPost("addGame")]
+    public async Task<IActionResult> AddOpinionForUserAndGame([FromBody] User user, [FromBody] UserGameDto gameDto)
     {
         var userIdFromToken = User.FindFirstValue(System.Security.Claims.ClaimTypes.NameIdentifier);
         if (!Guid.TryParse(userIdFromToken, out Guid userId))
@@ -27,7 +27,7 @@ public class GameController : Controller
             return Forbid("You are not authorized to update this user.");
         }
 
-        await _gameService.AddOpinionForUserAndGame(userId, appId, opinion);
+        await _gameService.AddOpinionForUserAndGame(userId, gameDto.ToLogic());
         return Ok();
     }
 }

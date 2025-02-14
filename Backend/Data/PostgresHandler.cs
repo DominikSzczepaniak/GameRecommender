@@ -7,7 +7,7 @@ public class PostgresHandler : DbContext, IDatabaseHandler
 {
     public DbSet<User> Users { get; set; }
     public DbSet<UserToSteamId> UserToSteamIds { get; set; }
-    public DbSet<UserGame> UserGames { get; set; }
+    public DbSet<UserGameDao> UserGames { get; set; }
     public DbSet<AppIdToName> AppIdToNames { get; set; }
 
     public PostgresHandler(DbContextOptions<PostgresHandler> options) : base(options) {}
@@ -72,36 +72,41 @@ public class PostgresHandler : DbContext, IDatabaseHandler
         return result;
     }
 
-    public async Task AddGameToUserLibrary(Guid userId, string appId, double playtime, bool? opinion = null)
+    public async Task AddGameToUserLibrary(UserGameDao userGameDao)
     {
-        var data = new UserGame(userId, appId, playtime, opinion);
-        await UserGames.AddAsync(data);
+        await UserGames.AddAsync(userGameDao);
         await SaveChangesAsync();
     }
 
-    public async Task<List<GameData>> GetUserGames(Guid userId)
+    public async Task AddOpinionForUserAndGame(UserGameDao userGameDao)
     {
-        var tasks = UserGames.Where(ug => ug.UserId == userId).AsEnumerable().Select(async ug =>
+        var exists = UserGames.Any(p => p.UserId == userGameDao.UserId && p.AppId == userGameDao.AppId);
+        if (exists)
         {
-            return new GameData(
-                ug.AppId,
-                await AppIdToNames.Where(g => g.AppId == ug.AppId).Select(g => g.Name).FirstOrDefaultAsync() ?? "",
-                ug.Playtime);
-        }).ToList();
-
-        List<GameData> result = (await Task.WhenAll(tasks)).ToList();
-        return result;
-    }
-
-    public Task AddOpinionForUserAndGame(Guid userId, string appId, bool opinion)
-    {
-        UserGames.Where(ug => ug.UserId == userId && ug.AppId == appId).ExecuteUpdateAsync(set => set.SetProperty(ug => ug.Opinion, opinion));
-        return SaveChangesAsync();
+            await UserGames.Where(ug => ug.UserId == userGameDao.UserId && ug.AppId == userGameDao.AppId).ExecuteUpdateAsync(set => set.SetProperty(ug => ug.Opinion, userGameDao.Opinion));
+            await SaveChangesAsync();
+        }
+        await AddGameToUserLibrary(userGameDao);
     }
 
     public Task AddAppIdToNameMapping(string appId, string name)
     {
         AppIdToNames.AddAsync(new AppIdToName(appId, name));
         return SaveChangesAsync();
+    }
+
+    public async Task<List<UserGameLogic>> GetUserGames(Guid userId)
+    {
+        var tasks = UserGames.Where(ug => ug.UserId == userId).AsEnumerable().Select(async ug =>
+        {
+            return new UserGameLogic(
+                ug.AppId,
+                ug.Playtime,
+                ug.Opinion,
+                await AppIdToNames.Where(g => g.AppId == ug.AppId).Select(g => g.Name).FirstOrDefaultAsync() ?? "");
+        }).ToList();
+
+        List<UserGameLogic> result = (await Task.WhenAll(tasks)).ToList();
+        return result;
     }
 }

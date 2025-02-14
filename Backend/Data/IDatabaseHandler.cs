@@ -10,8 +10,8 @@ public interface IDatabaseHandler
     public Task<bool> DeleteUser(User user);
     public Task SetUserSteamProfileId(Guid userId, string steamProfileId);
     public Task<string> GetUserSteamId(Guid userId);
-    public Task AddGameToUserLibrary(Guid userId, string appId, double playtime, bool? opinion = null);
-    public Task<List<GameData>> GetUserGames(Guid userId);
-    public Task AddOpinionForUserAndGame(Guid userId, string appId, bool opinion);
+    public Task AddGameToUserLibrary(UserGameDao userGameDao);
+    public Task<List<UserGameLogic>> GetUserGames(Guid userId);
+    public Task AddOpinionForUserAndGame(UserGameDao userGameDao);
     public Task AddAppIdToNameMapping(string appId, string name);
 }

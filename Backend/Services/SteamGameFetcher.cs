@@ -29,20 +29,20 @@ public class SteamGameFetcher
         }
     }
 
-    public static async Task<List<GameData>> GetSteamGamesFromXmlAsync(string steamId)
+    public static async Task<List<SteamFetchedGameData>> GetSteamGamesFromXmlAsync(string steamId)
     {
         string link = $"https://steamcommunity.com/profiles/{steamId}/games?tab=all&xml=1";
         string xmlData = await GetXmlDataAsync(link);
 
         if (xmlData == null)
         {
-            return new List<GameData>();
+            return new List<SteamFetchedGameData>();
         }
 
         try
         {
             XDocument doc = XDocument.Parse(xmlData);
-            List<GameData> games = new List<GameData>();
+            List<SteamFetchedGameData> games = new List<SteamFetchedGameData>();
 
             foreach (XElement gameElement in doc.Descendants("game"))
             {
@@ -76,7 +76,7 @@ public class SteamGameFetcher
                     hoursOnRecord = 0;
                 }
 
-                games.Add(new GameData(appId, name, hoursOnRecord));
+                games.Add(new SteamFetchedGameData(appId, name, hoursOnRecord));
             }
 
             return games;
@@ -84,7 +84,7 @@ public class SteamGameFetcher
         catch (Exception ex)
         {
             Console.WriteLine($"Error parsing XML: {ex.Message}");
-            return new List<GameData>();
+            return new List<SteamFetchedGameData>();
         }
     }
 }

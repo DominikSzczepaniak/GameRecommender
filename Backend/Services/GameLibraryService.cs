@@ -20,15 +20,15 @@ public class GameLibraryService(IDatabaseHandler databaseHandler) : IGameLibrary
         throw new ArgumentException("Invalid steam link or user not found");
     }
 
-    private async Task<List<GameData>> GetSteamGamesFromXml(Guid userId)
+    private async Task<List<SteamFetchedGameData>> GetSteamGamesFromXml(Guid userId)
     {
         string steamId = await GetUserSteamId(userId);
         return await SteamGameFetcher.GetSteamGamesFromXmlAsync(steamId);
     }
 
-    private void AddGamesToUserLibrary(Guid userId, List<GameData> gamesToAdd)
+    private void AddGamesToUserLibrary(Guid userId, List<SteamFetchedGameData> gamesToAdd)
     {
-        gamesToAdd.ForEach(game => databaseHandler.AddGameToUserLibrary(userId, game.AppId, game.HoursOnRecord));
+        gamesToAdd.ForEach(game => databaseHandler.AddGameToUserLibrary(game.ToDao(userId)));
     }
 
     public async Task SetUserSteamProfile(Guid userId, string steamProfileLink)
