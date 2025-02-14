@@ -12,7 +12,7 @@ public class PostgresHandler : DbContext, IDatabaseHandler
 
     public PostgresHandler(DbContextOptions<PostgresHandler> options) : base(options) {}
 
-    public async Task<User> RegisterUser(User user)
+    public async Task RegisterUser(User user)
     {
         if (Users.Any(u => u.Id == user.Id))
         {
@@ -20,7 +20,6 @@ public class PostgresHandler : DbContext, IDatabaseHandler
         }
         await Users.AddAsync(user);
         await SaveChangesAsync();
-        return user;
     }
 
     public async Task<User?> LoginByUsername(string username, string password)

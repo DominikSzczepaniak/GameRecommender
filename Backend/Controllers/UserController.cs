@@ -29,8 +29,8 @@ public class UserController : Controller
     {
         try
         {
-            var registeredUser = await _userService.RegisterUser(user);
-            return Ok(registeredUser);
+            await _userService.RegisterUser(user);
+            return Ok();
         }
         catch (ArgumentException ex)
         {

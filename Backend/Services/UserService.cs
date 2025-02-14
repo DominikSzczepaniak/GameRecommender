@@ -18,9 +18,9 @@ public class UserService : IUserService
         return await _databaseConnection.LoginByUsername(username, password);
     }
 
-    public async Task<User> RegisterUser(User user)
+    public async Task RegisterUser(User user)
     {
-        return await _databaseConnection.RegisterUser(user);
+        await _databaseConnection.RegisterUser(user);
     }
 
     public async Task<User> UpdateUser(User user)

@@ -68,18 +68,13 @@ public class UserControllerTests
     {
         // Arrange
         var user = new User(Guid.NewGuid(), "testuser", "test@example.com", "password");
-        _mockUserService.Setup(service => service.RegisterUser(It.IsAny<User>())).ReturnsAsync(user);
+        _mockUserService.Setup(service => service.RegisterUser(It.IsAny<User>()));
 
         // Act
         var result = await _controller.Register(user);
 
         // Assert
-        ClassicAssert.IsInstanceOf<OkObjectResult>(result);
-        var okResult = (OkObjectResult)result;
-        ClassicAssert.IsInstanceOf<User>(okResult.Value);
-        var returnedUser = (User)okResult.Value;
-        ClassicAssert.AreEqual(user.Id, returnedUser.Id);
-        ClassicAssert.AreEqual(user.Username, returnedUser.Username);
+        ClassicAssert.IsInstanceOf<OkResult>(result);
     }
 
     [Test]
