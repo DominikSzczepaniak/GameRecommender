@@ -4,10 +4,16 @@ using GameRecommender.Interfaces;
 
 namespace GameRecommender.Services;
 
-public class GameLibraryService(IDatabaseHandler databaseHandler) : IGameLibrary
+public class GameLibraryService : IGameLibrary
 {
     private const string SteamPattern = @"https://steamcommunity\.com/profiles/([^/]+)/";
     private static readonly Regex SteamRegex = new Regex(SteamPattern);
+    private readonly IDatabaseHandler _databaseHandler;
+
+    public GameLibraryService(IDatabaseHandler databaseHandler)
+    {
+        _databaseHandler = databaseHandler;
+    }
 
     private string GetSteamId(string steamProfileLink)
     {
@@ -28,18 +34,18 @@ public class GameLibraryService(IDatabaseHandler databaseHandler) : IGameLibrary
 
     private void AddGamesToUserLibrary(Guid userId, List<SteamFetchedGameData> gamesToAdd)
     {
-        gamesToAdd.ForEach(game => databaseHandler.AddGameToUserLibrary(game.ToDao(userId)));
+        gamesToAdd.ForEach(game => _databaseHandler.AddGameToUserLibrary(game.ToDao(userId)));
     }
 
     public async Task SetUserSteamProfile(Guid userId, string steamProfileLink)
     {
         var steamId = GetSteamId(steamProfileLink);
         AddGamesToUserLibrary(userId, await GetSteamGamesFromXml(userId));
-        await databaseHandler.SetUserSteamProfileId(userId, steamId);
+        await _databaseHandler.SetUserSteamProfileId(userId, steamId);
     }
 
     private async Task<String> GetUserSteamId(Guid userId)
     {
-        return await databaseHandler.GetUserSteamId(userId);
+        return await _databaseHandler.GetUserSteamId(userId);
     }
 }

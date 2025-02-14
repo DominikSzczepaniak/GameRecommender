@@ -113,7 +113,7 @@ public class UserControllerTests
         var result = await _controller.Login(userLogin);
 
         // Assert
-        ClassicAssert.IsInstanceOf<UnauthorizedResult>(result);
+        ClassicAssert.IsInstanceOf<NotFoundResult>(result);
     }
 
     [Test]

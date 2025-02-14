@@ -7,8 +7,15 @@ using Microsoft.AspNetCore.Mvc;
 namespace GameRecommender.Controllers;
 [ApiController]
 [Route("gameLibraryLogin")]
-public class GameLibraryLoginController(IGameLibrary gameLibrary) : Controller
+public class GameLibraryLoginController : Controller
 {
+    private readonly IGameLibrary _gameLibrary;
+
+    public GameLibraryLoginController(IGameLibrary gameLibrary)
+    {
+        _gameLibrary = gameLibrary;
+    }
+
     [Authorize]
     [HttpPost("{steamLink}")]
     public async Task<IActionResult> GetSteamProfile([FromBody] User user, string steamLink)
@@ -25,13 +32,12 @@ public class GameLibraryLoginController(IGameLibrary gameLibrary) : Controller
         }
         try
         {
-            await gameLibrary.SetUserSteamProfile(user.Id, steamLink);
+            await _gameLibrary.SetUserSteamProfile(user.Id, steamLink);
             return Ok();
         }
         catch (ArgumentException ex)
         {
             return BadRequest(ex.Message);
         }
-
     }
 }

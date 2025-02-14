@@ -25,5 +25,4 @@ public class SteamGameFetcherTests
         }
         ClassicAssert.IsTrue(gamesPlayed.Exists(b => b.Name == "Factorio"));
     }
-
 }

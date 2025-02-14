@@ -7,8 +7,15 @@ using Microsoft.AspNetCore.Mvc;
 namespace GameRecommender.Controllers;
 [ApiController]
 [Route("recommendations")]
-public class RecommendationRecieverController(IDockerRunner dockerRunner) : Controller
+public class RecommendationRecieverController : Controller
 {
+    private readonly IDockerRunner _dockerRunner;
+
+    public RecommendationRecieverController(IDockerRunner dockerRunner)
+    {
+        _dockerRunner = dockerRunner;
+    }
+
     [Authorize]
     [HttpPost("{engineNumber}")]
     public async Task<IActionResult> GetRecommendations([FromBody] User user, int engineNumber)
@@ -25,7 +32,7 @@ public class RecommendationRecieverController(IDockerRunner dockerRunner) : Cont
         }
         try
         {
-            var result = await dockerRunner.GetRecommendations(user.Id, engineNumber);
+            var result = await _dockerRunner.GetRecommendations(user.Id, engineNumber);
             return Ok(result);
         }
         catch (ArgumentException ex)
