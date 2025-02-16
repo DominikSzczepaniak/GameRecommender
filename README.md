@@ -22,11 +22,5 @@ b) when notification sent to recommendation system, run learning for user_id on 
 After either a or b update recommendations cache to match number of games we want to keep in cache at the beggining.
 
 
-
-
-
-
-
-
 TODO:
-1. Remove GameData and UserGame relation - make it into one
+Logic for recommendation system caching
