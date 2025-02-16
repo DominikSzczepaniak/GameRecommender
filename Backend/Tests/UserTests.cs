@@ -1,10 +1,3 @@
-<<<<<<< HEAD
-﻿namespace GameRecommender.Tests;
-
-public class UserTests
-{
-    
-=======
 using System;
 using System.IdentityModel.Tokens.Jwt;
 using System.Security.Claims;
@@ -222,5 +215,4 @@ public class UserControllerTests
         var badRequestResult = (BadRequestObjectResult)result;
         ClassicAssert.AreEqual("Invalid user ID in token.", badRequestResult.Value);
     }
->>>>>>> Backend
 }

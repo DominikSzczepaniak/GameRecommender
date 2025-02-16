@@ -1,10 +1,3 @@
-<<<<<<< HEAD
-﻿namespace GameRecommender.Services;
-
-public class UserService
-{
-    
-=======
 ﻿using GameRecommender.Data;
 using GameRecommender.Interfaces;
 using GameRecommender.Models;
@@ -39,5 +32,4 @@ public class UserService : IUserService
     {
         return await _databaseConnection.DeleteUser(user);
     }
->>>>>>> Backend
 }
