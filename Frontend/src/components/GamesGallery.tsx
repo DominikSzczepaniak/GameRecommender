@@ -28,7 +28,7 @@ const GameGallery: React.FC<GameGalleryProps> = ({ appIds, maxSelections = 5 }) 
       //   headers: {
       //     'Content-Type': 'application/json',
       //   },
-      //   body: JSON.stringify({ selectedGames }),
+      //   body: JSON.stringify({ userId, selectedGames }),
       // });
 
       // if (!response.ok) {
