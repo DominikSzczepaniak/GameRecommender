@@ -1,7 +1,6 @@
 import viteLogo from '/vite.svg'
 import { ThemeProvider } from '@/components/theme-provider'
 import { useState } from 'react'
-import { ThemeProvider } from "@/components/theme-provider"
 import { Route, Routes } from 'react-router-dom'
 import { Home } from 'lucide-react'
 import { Settings } from 'lucide-react'
