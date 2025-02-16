@@ -1,0 +1,16 @@
+{
+    "gameCard":
+    {
+        "title": "Tytuł",
+        "description": "Opis",
+        "price": "Cena",
+        "platform": "Platforma",
+        "releaseDate": "Data wydania",
+        "publisher": "Wydawca"
+    },
+    "getRecommendation":
+    {
+        "selectEngine": "Wybierz jakiego systemu rekomendującego chcesz użyć",
+        "getGame": "Otrzymaj rekomendację"
+    }
+}
