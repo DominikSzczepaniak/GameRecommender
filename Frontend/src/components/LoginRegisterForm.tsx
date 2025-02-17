@@ -7,6 +7,7 @@ import { User } from '@/models/User';
 import { API_SERVER } from '@/settings';
 import { errorHandler } from '@/utilities/error';
 import { useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 
 type FormProps = React.ComponentProps<typeof Card> & {
   isLogin: boolean,
@@ -25,6 +26,8 @@ export function LoginRegisterForm({ className, isLogin, ...props }: FormProps) {
   const [password2, setPassword2] = useState('');
   const [message, setMessage] = useState('');
   const [showPassword, setShowPassword] = useState(false);
+
+  const navigate = useNavigate(); // Initialize the navigate function
 
   const handleLogin = async (username: string, password: string) => {
     try {
@@ -63,7 +66,7 @@ export function LoginRegisterForm({ className, isLogin, ...props }: FormProps) {
       if (!response.ok) {
         throw new Error('Login failed');
       }
-      return; //TODO show toast here
+      return; //TODO show toast here and redirect
     } catch (error) {
       console.error('Error:', error);
       return null;
@@ -73,15 +76,19 @@ export function LoginRegisterForm({ className, isLogin, ...props }: FormProps) {
   const handleLoginRegister = (username: string, password: string, isLogin: boolean, email: string) => {
     if (!username || !password) {
       setMessage('One of the inputs is empty!');
-    } else if (!validator(email)) {
+    } else if (!isLogin && !validator(email)) {
       setMessage('Wrong email format! Follow: example@gmail.com');
     } else {
       if (isLogin) {
-        handleLogin(username, password);
+        if (handleLogin(username, password) != null) {
+          setMessage('');
+          navigate('/');
+        }
       } else {
         handleRegister(username, email, password);
+        setMessage('');
+        navigate('/');
       }
-      setMessage('');
     }
   };
 
@@ -104,15 +111,19 @@ export function LoginRegisterForm({ className, isLogin, ...props }: FormProps) {
               onChange={(e) => {
                 setUsername(e.target.value);
               }} />
-            <p>
-              Email
-            </p>
-            <Input
-              placeholder='Type in your email'
-              value={email}
-              onChange={(e) => {
-                setEmail(e.target.value);
-              }} />
+            {!isLogin && (
+              <div className='mt-2'>
+                <p>
+                  Email
+                </p>
+                <Input
+                  placeholder='Type in your email'
+                  value={email}
+                  onChange={(e) => {
+                    setEmail(e.target.value);
+                  }} />
+              </div>
+            )}
             <p>
               Password
             </p>
