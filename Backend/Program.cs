@@ -19,19 +19,19 @@ class Program
         // -------------
         // Database settings
         var connectionString = builder.Configuration.GetSection("ConnectionString").Get<String>();
-        builder.Services.AddDbContext<ApplicationDbContext>(options =>
-            options.UseNpgsql(builder.Configuration.GetConnectionString("DefaultConnection")));
-
+        // builder.Services.AddDbContext<ApplicationDbContext>(options =>
+            // options.UseNpgsql(connectionString));
+        builder.Services.AddDbContext<PostgresHandler>(options =>
+            options.UseNpgsql(connectionString));
         builder.Services.AddScoped<IDatabaseHandler, PostgresHandler>();
         //
 
         // ------------
         //Dependency injection
-        builder.Services.AddSingleton<IDatabaseHandler, PostgresHandler>();
-        builder.Services.AddSingleton<IUserService, UserService>();
-        builder.Services.AddSingleton<UserController>();
-        builder.Services.AddSingleton<IGameService, GameService>();
-        builder.Services.AddSingleton<GameController>();
+        builder.Services.AddScoped<IUserService, UserService>();
+        builder.Services.AddScoped<IGameService, GameService>();
+        builder.Services.AddScoped<IDatabaseHandler, PostgresHandler>();
+        builder.Services.AddScoped<UserController>();
 
         // ------------
 
@@ -52,6 +52,7 @@ class Program
         builder.Services.AddAuthorization(); // Add authorization
         // ------------
 
+        builder.Services.AddControllers();
         builder.Services.AddEndpointsApiExplorer();
         builder.Services.AddSwaggerGen();
         
