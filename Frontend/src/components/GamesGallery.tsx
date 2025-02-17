@@ -36,7 +36,7 @@ const GameGallery: React.FC<GameGalleryProps> = ({ appIds, maxSelections = 5 }) 
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          'Authentication': `Bearer ${localStorage.getItem('jwttoken')}`,
+          'Authentication': `Bearer ${localStorage.getItem('token')}`,
         },
         body: JSON.stringify({
           user: {

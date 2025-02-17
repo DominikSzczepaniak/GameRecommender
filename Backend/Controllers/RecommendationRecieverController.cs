@@ -17,7 +17,7 @@ public class RecommendationRecieverController : Controller
     }
 
     [Authorize]
-    [HttpPost("{engineNumber}")]
+    [HttpPost]
     public async Task<IActionResult> GetRecommendations([FromBody] User user, int engineNumber)
     {
         var userIdFromToken = User.FindFirstValue(System.Security.Claims.ClaimTypes.NameIdentifier);
