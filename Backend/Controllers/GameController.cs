@@ -12,6 +12,11 @@ public class GameController : Controller
 {
     private readonly IGameService _gameService;
 
+    public GameController(IGameService gameService)
+    {
+        _gameService = gameService;
+    }
+
     [Authorize]
     [HttpPost("addGame")]
     public async Task<IActionResult> AddOpinionForUserAndGame([FromBody] AddOpinionRequest request)

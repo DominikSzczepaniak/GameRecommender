@@ -13,6 +13,7 @@ using Moq;
 using NUnit.Framework;
 using NUnit.Framework.Legacy;
 
+namespace GameRecommender.Tests;
 [TestFixture]
 public class UserControllerTests
 {
