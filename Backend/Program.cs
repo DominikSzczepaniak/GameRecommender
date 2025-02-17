@@ -31,7 +31,7 @@ class Program
         builder.Services.AddScoped<IUserService, UserService>();
         builder.Services.AddScoped<IGameService, GameService>();
         builder.Services.AddScoped<IDatabaseHandler, PostgresHandler>();
-        builder.Services.AddScoped<UserController>();
+        // builder.Services.AddScoped<UserController>();
 
         // ------------
 
@@ -53,7 +53,7 @@ class Program
         // ------------
 
         builder.Services.AddControllers();
-        builder.Services.AddEndpointsApiExplorer();
+        // builder.Services.AddEndpointsApiExplorer();
         builder.Services.AddSwaggerGen();
         
         builder.Services.AddCors(options =>
@@ -75,9 +75,15 @@ class Program
             app.UseSwagger();
             app.UseSwaggerUI();
         }
-
-        app.UseHttpsRedirection();
+        app.UseRouting();
         app.UseCors("AllowSpecificOrigin");
+        app.UseAuthentication();
+        app.UseAuthorization();
+        app.UseEndpoints(endpoints =>
+        {
+            endpoints.MapControllers();
+        });
+        // app.UseHttpsRedirection();
 
         app.Run();
     }

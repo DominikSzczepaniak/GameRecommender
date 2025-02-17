@@ -130,6 +130,7 @@ export function LoginRegisterForm({ className, isLogin, ...props }: FormProps) {
                 </p>
                 <Input
                   className='mt-2'
+                  type={showPassword ? 'text' : 'password'}
                   placeholder='Retype your password'
                   value={password2}
                   onChange={(e) => {

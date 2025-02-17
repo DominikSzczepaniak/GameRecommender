@@ -10,7 +10,7 @@ using Microsoft.IdentityModel.Tokens;
 namespace GameRecommender.Controllers;
 
 [ApiController]
-[Route("[controller]")] 
+[Route("[controller]")]
 public class UserController : Controller
 {
     private readonly IUserService _userService;

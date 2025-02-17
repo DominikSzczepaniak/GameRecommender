@@ -7,13 +7,14 @@ namespace GameRecommender.Models;
 public class User
 {
     [Key]
-    public Guid Id { get; }
+    public Guid Id { get; set; }
     [MaxLength(64)]
     public string Username { get; set; }
     [MaxLength(64)]
     public string Email { get; set; }
     [MaxLength(32)]
-    public string Password { get; private set; }
+    public string Password { get; set; }
+    public User () {}
 
     public User(Guid anId, string aUsername, string anEmail, string aPassword)
     {

@@ -11,7 +11,7 @@ public class UserGameDao
     public string AppId { get; set; }
 
     public bool? Opinion { get; set; } = null;// Null for no opinion, false for dislike, true for like
-    public double? Playtime = null;
+    public double? Playtime { get; set; } = null;
 
     public User User { get; set; }
 
