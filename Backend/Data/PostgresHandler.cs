@@ -1,111 +1,202 @@
 ﻿using GameRecommender.Models;
-using Microsoft.EntityFrameworkCore;
+using Npgsql;
 
 namespace GameRecommender.Data;
 
-public class PostgresHandler : DbContext, IDatabaseHandler
+public class PostgresHandler(PostgresConnectionPool connectionPool) : IDatabaseHandler, IDisposable
 {
-    public DbSet<User> Users { get; set; }
-    public DbSet<UserToSteamId> UserToSteamIds { get; set; }
-    public DbSet<UserGameDao> UserGames { get; set; }
-    public DbSet<AppIdToName> AppIdToNames { get; set; }
+    public void Dispose()
+    {
+        connectionPool.Dispose();
+    }
 
-    public PostgresHandler(DbContextOptions<PostgresHandler> options) : base(options) {}
+    private async Task<NpgsqlConnection> GetConnectionAsync()
+    {
+        return await connectionPool.GetConnectionAsync();
+    }
 
     public async Task RegisterUser(User user)
     {
-        if (Users.Any(u => u.Id == user.Id))
+        using var connection = await GetConnectionAsync();
+        var command = connection.CreateCommand();
+        command.CommandText = "INSERT INTO Users (Id, Username, Email, Password) VALUES (@Id, @Username, @Email, @Password)";
+        command.Parameters.Add(new Npgsql.NpgsqlParameter("@Id", user.Id));
+        command.Parameters.Add(new Npgsql.NpgsqlParameter("@Username", user.Username));
+        command.Parameters.Add(new Npgsql.NpgsqlParameter("@Email", user.Email));
+        command.Parameters.Add(new Npgsql.NpgsqlParameter("@Password", user.Password));
+
+        var existingUser = await GetUserByUsername(user.Username);
+        if (existingUser != null)
         {
             throw new ArgumentException("User already exists");
         }
-        await Users.AddAsync(user);
-        await SaveChangesAsync();
+
+        await command.ExecuteNonQueryAsync();
     }
 
     public async Task<User?> LoginByUsername(string username, string password)
     {
-        return await Users.FirstOrDefaultAsync(u => u.Username == username && u.Password == password);
+        using var connection = await GetConnectionAsync();
+        var command = connection.CreateCommand();
+        command.CommandText = "SELECT * FROM Users WHERE Username = @Username AND Password = @Password";
+        command.Parameters.Add(new Npgsql.NpgsqlParameter("@Username", username));
+        command.Parameters.Add(new Npgsql.NpgsqlParameter("@Password", password));
+
+        using var reader = await command.ExecuteReaderAsync();
+        if (await reader.ReadAsync())
+        {
+            return new User
+            {
+                Id = reader.GetGuid(reader.GetOrdinal("Id")),
+                Username = reader.GetString(reader.GetOrdinal("Username")),
+                Password = reader.GetString(reader.GetOrdinal("Password"))
+            };
+        }
+
+        return null;
     }
 
     public async Task<User> UpdateUser(User user)
     {
-        Users.Update(user);
-        await SaveChangesAsync();
+        using var connection = await GetConnectionAsync();
+        var command = connection.CreateCommand();
+        command.CommandText = "UPDATE Users SET Username = @Username, Password = @Password WHERE Id = @Id";
+        command.Parameters.Add(new Npgsql.NpgsqlParameter("@Id", user.Id));
+        command.Parameters.Add(new Npgsql.NpgsqlParameter("@Username", user.Username));
+        command.Parameters.Add(new Npgsql.NpgsqlParameter("@Password", user.Password));
+
+        await command.ExecuteNonQueryAsync();
         return user;
     }
 
     public async Task<bool> DeleteUser(User user)
     {
-        // if (!Users.Any(u => u.Id == user.Id))
-        // {
-        //     return false; //could be removed because if SaveChangesAsync() == 0 then we didnt delete anyone hence user didn't exist
-        // }
-        Users.Remove(user);
-        return await SaveChangesAsync() > 0;
+        using var connection = await GetConnectionAsync();
+        var command = connection.CreateCommand();
+        command.CommandText = "DELETE FROM Users WHERE Id = @Id";
+        command.Parameters.Add(new Npgsql.NpgsqlParameter("@Id", user.Id));
+
+        var rowsAffected = await command.ExecuteNonQueryAsync();
+        return rowsAffected > 0;
     }
 
     public async Task SetUserSteamProfileId(Guid userId, string steamProfileId)
     {
-        var existingEntry = await UserToSteamIds.FindAsync(userId);
+        using var connection = await GetConnectionAsync();
+        var command = connection.CreateCommand();
+        command.CommandText = @"
+            INSERT INTO UserToSteamIds (UserId, SteamId)
+            VALUES (@UserId, @SteamId)
+            ON CONFLICT (UserId) DO UPDATE SET SteamId = EXCLUDED.SteamId";
+        command.Parameters.Add(new Npgsql.NpgsqlParameter("@UserId", userId));
+        command.Parameters.Add(new Npgsql.NpgsqlParameter("@SteamId", steamProfileId));
 
-        if (existingEntry != null)
-        {
-            existingEntry.SteamId = steamProfileId;
-        }
-        else
-        {
-            await UserToSteamIds.AddAsync(new UserToSteamId { UserId = userId, SteamId = steamProfileId });
-        }
-
-        await SaveChangesAsync();
+        await command.ExecuteNonQueryAsync();
     }
 
     public async Task<string> GetUserSteamId(Guid userId)
     {
-        var result = await UserToSteamIds.Where(us => us.UserId == userId).Select(us => us.SteamId)
-            .FirstOrDefaultAsync();
+        using var connection = await GetConnectionAsync();
+        var command = connection.CreateCommand();
+        command.CommandText = "SELECT SteamId FROM UserToSteamIds WHERE UserId = @UserId";
+        command.Parameters.Add(new Npgsql.NpgsqlParameter("@UserId", userId));
+
+        var result = await command.ExecuteScalarAsync();
         if (result == null)
         {
-            throw new ArgumentException("User doesnt exist or SteamID not saved");
+            throw new ArgumentException("User doesn't exist or SteamID not saved");
         }
-        return result;
+
+        return result.ToString();
     }
 
     public async Task AddGameToUserLibrary(UserGameDao userGameDao)
     {
-        await UserGames.AddAsync(userGameDao);
-        await SaveChangesAsync();
+        using var connection = await GetConnectionAsync();
+        var command = connection.CreateCommand();
+        command.CommandText = "INSERT INTO UserGames (UserId, AppId, Playtime, Opinion) VALUES (@UserId, @AppId, @Playtime, @Opinion)";
+        command.Parameters.Add(new Npgsql.NpgsqlParameter("@UserId", userGameDao.UserId));
+        command.Parameters.Add(new Npgsql.NpgsqlParameter("@AppId", userGameDao.AppId));
+        command.Parameters.Add(new Npgsql.NpgsqlParameter("@Playtime", userGameDao.Playtime));
+        command.Parameters.Add(new Npgsql.NpgsqlParameter("@Opinion", userGameDao.Opinion));
+
+        await command.ExecuteNonQueryAsync();
     }
 
     public async Task AddOpinionForUserAndGame(UserGameDao userGameDao)
     {
-        var exists = UserGames.Any(p => p.UserId == userGameDao.UserId && p.AppId == userGameDao.AppId);
-        if (exists)
+        using var connection = await GetConnectionAsync();
+        var command = connection.CreateCommand();
+        command.CommandText = @"
+            UPDATE UserGames 
+            SET Opinion = @Opinion 
+            WHERE UserId = @UserId AND AppId = @AppId";
+        command.Parameters.Add(new Npgsql.NpgsqlParameter("@UserId", userGameDao.UserId));
+        command.Parameters.Add(new Npgsql.NpgsqlParameter("@AppId", userGameDao.AppId));
+        command.Parameters.Add(new Npgsql.NpgsqlParameter("@Opinion", userGameDao.Opinion));
+
+        var rowsAffected = await command.ExecuteNonQueryAsync();
+        if (rowsAffected == 0)
         {
-            await UserGames.Where(ug => ug.UserId == userGameDao.UserId && ug.AppId == userGameDao.AppId).ExecuteUpdateAsync(set => set.SetProperty(ug => ug.Opinion, userGameDao.Opinion));
-            await SaveChangesAsync();
+            await AddGameToUserLibrary(userGameDao);
         }
-        await AddGameToUserLibrary(userGameDao);
     }
 
-    public Task AddAppIdToNameMapping(string appId, string name)
+    public async Task AddAppIdToNameMapping(string appId, string name)
     {
-        AppIdToNames.AddAsync(new AppIdToName(appId, name));
-        return SaveChangesAsync();
+        using var connection = await GetConnectionAsync();
+        var command = connection.CreateCommand();
+        command.CommandText = "INSERT INTO AppIdToNames (AppId, Name) VALUES (@AppId, @Name)";
+        command.Parameters.Add(new Npgsql.NpgsqlParameter("@AppId", appId));
+        command.Parameters.Add(new Npgsql.NpgsqlParameter("@Name", name));
+
+        await command.ExecuteNonQueryAsync();
     }
 
     public async Task<List<UserGameLogic>> GetUserGames(Guid userId)
     {
-        var tasks = UserGames.Where(ug => ug.UserId == userId).AsEnumerable().Select(async ug =>
-        {
-            return new UserGameLogic(
-                ug.AppId,
-                ug.Playtime,
-                ug.Opinion,
-                await AppIdToNames.Where(g => g.AppId == ug.AppId).Select(g => g.Name).FirstOrDefaultAsync() ?? "");
-        }).ToList();
+        using var connection = await GetConnectionAsync();
+        var command = connection.CreateCommand();
+        command.CommandText = @"
+            SELECT ug.AppId, ug.Playtime, ug.Opinion, an.Name 
+            FROM UserGames ug
+            LEFT JOIN AppIdToNames an ON ug.AppId = an.AppId
+            WHERE ug.UserId = @UserId";
+        command.Parameters.Add(new Npgsql.NpgsqlParameter("@UserId", userId));
 
-        List<UserGameLogic> result = (await Task.WhenAll(tasks)).ToList();
-        return result;
+        var games = new List<UserGameLogic>();
+        using var reader = await command.ExecuteReaderAsync();
+        while (await reader.ReadAsync())
+        {
+            games.Add(new UserGameLogic(
+                reader.GetString(reader.GetOrdinal("AppId")),
+                reader.GetInt32(reader.GetOrdinal("Playtime")),
+                reader.GetBoolean(reader.GetOrdinal("Opinion")),
+                reader.IsDBNull(reader.GetOrdinal("Name")) ? "" : reader.GetString(reader.GetOrdinal("Name"))
+            ));
+        }
+
+        return games;
+    }
+
+    private async Task<User?> GetUserByUsername(string username)
+    {
+        using var connection = await GetConnectionAsync();
+        var command = connection.CreateCommand();
+        command.CommandText = "SELECT * FROM Users WHERE Username = @Username";
+        command.Parameters.Add(new Npgsql.NpgsqlParameter("@Username", username));
+
+        using var reader = await command.ExecuteReaderAsync();
+        if (await reader.ReadAsync())
+        {
+            return new User
+            {
+                Id = reader.GetGuid(reader.GetOrdinal("Id")),
+                Username = reader.GetString(reader.GetOrdinal("Username")),
+                Password = reader.GetString(reader.GetOrdinal("Password"))
+            };
+        }
+
+        return null;
     }
 }

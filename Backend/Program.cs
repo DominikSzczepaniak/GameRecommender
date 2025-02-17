@@ -19,18 +19,15 @@ class Program
         // -------------
         // Database settings
         var connectionString = builder.Configuration.GetSection("ConnectionString").Get<String>();
-        // builder.Services.AddDbContext<ApplicationDbContext>(options =>
-            // options.UseNpgsql(connectionString));
-        builder.Services.AddDbContext<PostgresHandler>(options =>
-            options.UseNpgsql(connectionString));
-        builder.Services.AddScoped<IDatabaseHandler, PostgresHandler>();
+        var maxPoolSize = 10;
         //
 
         // ------------
         //Dependency injection
+        builder.Services.AddSingleton(new PostgresConnectionPool(connectionString, maxPoolSize));
+        builder.Services.AddScoped<IDatabaseHandler, PostgresHandler>();
         builder.Services.AddScoped<IUserService, UserService>();
         builder.Services.AddScoped<IGameService, GameService>();
-        builder.Services.AddScoped<IDatabaseHandler, PostgresHandler>();
         // builder.Services.AddScoped<UserController>();
 
         // ------------
