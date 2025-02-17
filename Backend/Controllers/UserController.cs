@@ -42,14 +42,13 @@ public class UserController : Controller
     public async Task<IActionResult> Login([FromBody] UserLoginModel userLogin)
     {
         var user = await _userService.LoginByUsername(userLogin.Username, userLogin.Password);
-
         if (user == null)
         {
             return NotFound();
         }
 
         var token = GenerateJwtToken(user);
-        return Ok(new { token });
+        return Ok(new { token, user });
     }
 
     [Authorize]

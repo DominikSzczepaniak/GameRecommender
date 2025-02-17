@@ -3,13 +3,8 @@ using Npgsql;
 
 namespace GameRecommender.Data;
 
-public class PostgresHandler(PostgresConnectionPool connectionPool) : IDatabaseHandler, IDisposable
+public class PostgresHandler(PostgresConnectionPool connectionPool) : IDatabaseHandler
 {
-    public void Dispose()
-    {
-        connectionPool.Dispose();
-    }
-
     private async Task<NpgsqlConnection> GetConnectionAsync()
     {
         return await connectionPool.GetConnectionAsync();
@@ -49,6 +44,7 @@ public class PostgresHandler(PostgresConnectionPool connectionPool) : IDatabaseH
             {
                 Id = reader.GetGuid(reader.GetOrdinal("Id")),
                 Username = reader.GetString(reader.GetOrdinal("Username")),
+                Email = reader.GetString(reader.GetOrdinal("Email")),
                 Password = reader.GetString(reader.GetOrdinal("Password"))
             };
         }

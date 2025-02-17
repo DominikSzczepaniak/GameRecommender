@@ -13,7 +13,7 @@ public class UserService : IUserService
         _databaseConnection = databaseConnection;
     }
 
-    public async Task<User> LoginByUsername(string username, string password)
+    public async Task<User?> LoginByUsername(string username, string password)
     {
         return await _databaseConnection.LoginByUsername(username, password);
     }

@@ -1,4 +1,5 @@
 ﻿using System.Collections.Concurrent;
+using System.Data;
 using Npgsql;
 namespace GameRecommender.Data;
 
@@ -27,6 +28,10 @@ public class PostgresConnectionPool
     {
         if (_connectionPool.TryTake(out var connection))
         {
+            if (connection.State == ConnectionState.Closed)
+            {
+                await connection.OpenAsync();
+            }
             return connection;
         }
         var newConnection = new NpgsqlConnection(_connectionString);
