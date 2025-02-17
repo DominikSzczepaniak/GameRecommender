@@ -4,10 +4,7 @@ namespace GameRecommender.Models;
 
 public class UserGameDao
 {
-    [Key]
-    [ForeignKey("User")]
     public Guid UserId { get; set; }
-    [MaxLength(64)]
     public string AppId { get; set; }
 
     public bool? Opinion { get; set; } = null;// Null for no opinion, false for dislike, true for like

@@ -27,6 +27,7 @@ class Program
         builder.Services.AddSingleton(new PostgresConnectionPool(connectionString, maxPoolSize));
         builder.Services.AddScoped<IDatabaseHandler, PostgresHandler>();
         builder.Services.AddScoped<IUserService, UserService>();
+        builder.Services.AddScoped<IGameLibrary, GameLibraryService>();
         builder.Services.AddScoped<IGameService, GameService>();
         // builder.Services.AddScoped<UserController>();
 
