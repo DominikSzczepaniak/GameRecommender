@@ -1,6 +1,7 @@
 import { Button } from '@/components/ui/button';
 import { Card, CardHeader } from '@/components/ui/card';
 import { Skeleton } from '@/components/ui/skeleton';
+import { errorHandler } from '@/utilities/error';
 import React, { useEffect, useState } from 'react';
 
 interface GameGalleryProps {
@@ -8,7 +9,13 @@ interface GameGalleryProps {
   maxSelections?: number;
 }
 
+type GameDto = {
+  AppId: string,
+  Opinion: boolean,
+};
+
 const GameGallery: React.FC<GameGalleryProps> = ({ appIds, maxSelections = 5 }) => {
+  //TODO if user already liked his games send to main website
   const [gamePhotos, setGamePhotos] = useState<Record<number, string | null>>({});
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -21,27 +28,36 @@ const GameGallery: React.FC<GameGalleryProps> = ({ appIds, maxSelections = 5 }) 
 
   const handleProceed = async () => {
     try {
-      // Placeholder API call (replace with your actual API call)
-      console.log('Sending selected games to API:', selectedGames); // Log for now
-      // const response = await fetch('/api/submitGames', {  // Example API endpoint
-      //   method: 'POST',
-      //   headers: {
-      //     'Content-Type': 'application/json',
-      //   },
-      //   body: JSON.stringify({ userId, selectedGames }),
-      // });
+      const games: GameDto[] = [];
+      for(const game in selectedGames) {
+        games.push({ AppId: game, Opinion: true });
+      }
+      const response = await fetch('/api/submitGames', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authentication': `Bearer ${localStorage.getItem('jwttoken')}`,
+        },
+        body: JSON.stringify({
+          user: {
+            Id: localStorage.getItem('userId'),
+            Username: localStorage.getItem('username'),
+            Email: localStorage.getItem('email'),
+            Password: '',
+          },
+          gameDto: selectedGames,
+        }),
+      });
 
-      // if (!response.ok) {
-      //   throw new Error(`API request failed with status ${response.status}`);
-      // }
+      if (!response.ok) {
+        return errorHandler('Faield to save liked games');
+      }
 
-      // const data = await response.json();
-      // console.log("API response:", data);
+      console.log('Correctly saved liked games');
 
       window.location.href = '/';
     } catch (error) {
-      console.error('Error submitting games:', error);
-      // Handle error (e.g., display an error message to the user)
+      return errorHandler('Error submitting games: '+error);
     }
   };
 

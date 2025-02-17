@@ -48,7 +48,7 @@ public class GameControllerTests
         var request = new AddOpinionRequest
         {
             user = new User(userId, "test", "test", "test"),
-            gameDto = new UserGameDto("1", true)
+            gameDto = new UserGameDto[] {new UserGameDto("1", true)}
         };
 
         _mockGameService.Setup(service => service.AddOpinionForUserAndGame(userId, It.IsAny<UserGameLogic>())).Returns(Task.CompletedTask);
@@ -68,7 +68,7 @@ public class GameControllerTests
         var request = new AddOpinionRequest
         {
             user = new User(new Guid(), "test", "test", "test"),
-            gameDto = new UserGameDto("1", true)
+            gameDto = new UserGameDto[] {new UserGameDto("1", true)}
         };
 
         // Act
@@ -91,7 +91,7 @@ public class GameControllerTests
         var request = new AddOpinionRequest
         {
             user = new User(requestUserId, "test", "test", "test"),
-            gameDto = new UserGameDto("1", true)
+            gameDto = new UserGameDto[] {new UserGameDto("1", true)}
         };
 
         // Act

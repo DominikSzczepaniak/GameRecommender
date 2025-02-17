@@ -32,7 +32,11 @@ public class GameController : Controller
             return Forbid("You are not authorized to update this user.");
         }
 
-        await _gameService.AddOpinionForUserAndGame(userId, request.gameDto.ToLogic());
+        var tasks = request.gameDto.Select(game =>
+            _gameService.AddOpinionForUserAndGame(userId, game.ToLogic())
+        ).ToList();
+
+        await Task.WhenAll(tasks);
         return Ok();
     }
 }
