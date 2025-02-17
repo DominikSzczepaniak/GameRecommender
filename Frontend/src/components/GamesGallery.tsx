@@ -15,7 +15,7 @@ type GameDto = {
 };
 
 const GameGallery: React.FC<GameGalleryProps> = ({ appIds, maxSelections = 5 }) => {
-  //TODO if user already liked his games send to main website
+  //TODO if user already liked his games send him to main website
   const [gamePhotos, setGamePhotos] = useState<Record<number, string | null>>({});
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);

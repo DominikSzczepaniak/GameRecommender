@@ -5,19 +5,22 @@ import { Route, Routes } from 'react-router-dom';
 import Navbar from './components/Navbar';
 import Login from './pages/Login';
 import Register from './pages/Register';
+import { AuthProvider } from '@/context/AuthProvider';
 
 function App() {
   return (
     <ThemeProvider defaultTheme='dark' storageKey='vite-ui-theme'>
-      <div>
-        <Navbar />
-        <Routes>
-          <Route path='/' element={<Home />} />
-          <Route path='/login' element={<Login />} />
-          <Route path='/register' element={<Register />} />
-          <Route path='/settings' element={<Settings />} />
-        </Routes>
-      </div>
+      <AuthProvider>
+        <div>
+          <Navbar />
+          <Routes>
+            <Route path='/' element={<Home />} />
+            <Route path='/login' element={<Login />} />
+            <Route path='/register' element={<Register />} />
+            <Route path='/settings' element={<Settings />} />
+          </Routes>
+        </div>
+      </AuthProvider>
     </ThemeProvider>
   );
 }

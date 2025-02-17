@@ -2,11 +2,12 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Switch } from '@/components/ui/switch';
+import { AuthContext } from '@/context/AuthProvider';
 import { cn } from '@/lib/utils';
 import { User } from '@/models/User';
 import { API_SERVER } from '@/settings';
 import { errorHandler } from '@/utilities/error';
-import { useState } from 'react';
+import { useContext, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 
 type FormProps = React.ComponentProps<typeof Card> & {
@@ -26,8 +27,9 @@ export function LoginRegisterForm({ className, isLogin, ...props }: FormProps) {
   const [password2, setPassword2] = useState('');
   const [message, setMessage] = useState('');
   const [showPassword, setShowPassword] = useState(false);
+  const { login } = useContext(AuthContext);
 
-  const navigate = useNavigate(); // Initialize the navigate function
+  const navigate = useNavigate();
 
   const handleLogin = async (username: string, password: string) => {
     try {
@@ -44,7 +46,11 @@ export function LoginRegisterForm({ className, isLogin, ...props }: FormProps) {
       }
 
       const data = await response.json();
-      localStorage.setItem('token', data.token);
+      await localStorage.setItem('token', data.token);
+      await localStorage.setItem('userId', data.user['id']);
+      await localStorage.setItem('username', data.user['username']);
+      await localStorage.setItem('email', data.user['email']);
+      login();
       return data.token;
     } catch (error) {
       console.error('Error:', error);
@@ -69,7 +75,7 @@ export function LoginRegisterForm({ className, isLogin, ...props }: FormProps) {
       return; //TODO show toast here and redirect
     } catch (error) {
       console.error('Error:', error);
-      return null;
+      return null; //TODO toast
     }
   };
 
