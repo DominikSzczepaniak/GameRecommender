@@ -78,19 +78,11 @@ const GameGallery: React.FC<GameGalleryProps> = ({ appIds, maxSelections = 5 }) 
     const gameChosen = async () => {
       try {
         const response = await fetch(`${API_SERVER}/User/gamesChosen`, {
-          method: 'POST',
+          method: 'GET',
           headers: {
             'Content-Type': 'application/json',
             'Authentication': `Bearer ${localStorage.getItem('token')}`,
           },
-          body: JSON.stringify({
-            user: {
-              Id: localStorage.getItem('userId'),
-              Username: localStorage.getItem('username'),
-              Email: localStorage.getItem('email'),
-              Password: '',
-            },
-          }),
         });
 
         if (!response.ok) {
