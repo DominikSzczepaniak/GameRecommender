@@ -11,9 +11,7 @@ class popularModel:
 
         train_popularity += 1
 
-        log_popularity = np.log(train_popularity)
-        self.popularity_weights = (log_popularity - log_popularity.min()) / (
-            log_popularity.max() - log_popularity.min())
+        self.popularity_weights = train_popularity / np.sum(train_popularity)
 
     def recommend(self, user_id, k):
         _, known_items = self.interactions[user_id].nonzero()
@@ -37,4 +35,4 @@ if __name__ == "__main__":
 
     from metrics import *
 
-    print(test_metrics(model, 50))
+    print(test_metrics(model, 20))
