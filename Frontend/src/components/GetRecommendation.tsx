@@ -1,10 +1,10 @@
 import { getLanguageFile } from '@/helpers/language';
+import { GameData } from '@/models/Game';
 import React from 'react';
 import { GameCard } from './GameCard';
 import { Button } from './ui/button';
 import { Card, CardContent, CardFooter } from './ui/card';
 import { Select, SelectContent, SelectTrigger, SelectValue } from './ui/select';
-import { GameData } from '@/models/Game';
 
 interface GetRecommendationProps {
   recommendationEngines: {
@@ -39,7 +39,7 @@ export const GetRecommendation = (props: GetRecommendationProps) => { //TODO: CS
     <div className='flex justify-center items-center'>
       {(visibleRecommendations && recommendations !== null)
         ? (
-          recommendations.slice(0,5).map((recommendation) => {
+          recommendations.slice(0, 5).map((recommendation) => {
             return (
               <Card>
                 <CardContent>
