@@ -257,6 +257,6 @@ if __name__ == "__main__":
 
     sys.path.append("../")
 
-    from metrics import *
+    from other_models.metrics import *
 
     print(test_metrics(model, 20))

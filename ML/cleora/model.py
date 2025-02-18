@@ -24,7 +24,6 @@ class CleoraRecommender:
         """Process NPZ file through DataFrame conversion"""
         self.model_dir.mkdir(parents=True, exist_ok=True)
 
-        # Get DataFrame from sparse matrix
         df = self.convert_sparse_to_csv(data_path)
 
         # Convert to user-item groups (filter positive ratings)
@@ -40,8 +39,10 @@ class CleoraRecommender:
 
         mat = SparseMatrix.from_iterator(
             cleora_input,
-            columns="complex::transient::reflexive"  # No embeddings for hyperedges
+            columns="complex::reflexive::app_id"  # ...
         )
+
+        print("ended1")
 
         # Now ALL embeddings will be items (no need for filtering later)
         embeddings = mat.initialize_deterministically(self.dim)
@@ -63,7 +64,6 @@ class CleoraRecommender:
             for u, items in user_groups.items()
         }
 
-        # Train KNN once
         self.knn_model = NearestNeighbors(metric="cosine", algorithm="brute")
         self.knn_model.fit(self.item_embeddings)
 
@@ -73,6 +73,7 @@ class CleoraRecommender:
         """Convert sparse matrix to DataFrame with (user, item, rating) tuples"""
         sparse_matrix = load_npz(path)
         rows, cols = sparse_matrix.row, sparse_matrix.col
+
         return pd.DataFrame({
             "u_id": rows,
             "i_id": cols,
@@ -151,5 +152,5 @@ class CleoraRecommender:
 
 
 if __name__ == "__main__":
-    recommender = CleoraRecommender(dim=4096, iter=8)
+    recommender = CleoraRecommender(dim=128, iter=8)
     recommender.fit("./data/train_and_test.npz")
