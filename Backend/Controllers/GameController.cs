@@ -18,7 +18,7 @@ public class GameController : Controller
     }
 
     [Authorize]
-    [HttpPost("addGame")]
+    [HttpPost("addOpinion")]
     public async Task<IActionResult> AddOpinionForUserAndGame([FromBody] AddOpinionRequest request)
     {
         var userIdFromToken = User.FindFirstValue(System.Security.Claims.ClaimTypes.NameIdentifier);
