@@ -52,8 +52,8 @@ public class UserController : Controller
     }
 
     [Authorize]
-    [HttpPost("gamesChosen")]
-    public async Task<IActionResult> GameChosenInGallery([FromBody] User user)
+    [HttpGet("gamesChosen")]
+    public async Task<IActionResult> GameChosenInGallery()
     {
         var userIdFromToken = User.FindFirstValue(System.Security.Claims.ClaimTypes.NameIdentifier);
         if (!Guid.TryParse(userIdFromToken, out Guid userId))
@@ -61,12 +61,7 @@ public class UserController : Controller
             return BadRequest("Invalid user ID in token.");
         }
 
-        if (user.Id != userId)
-        {
-            return Forbid("You are not authorized to update this user.");
-        }
-
-        return Ok(await _userService.GamesChosenInGallery(user));
+        return Ok(await _userService.GamesChosenInGallery(userId));
     }
 
     [Authorize]

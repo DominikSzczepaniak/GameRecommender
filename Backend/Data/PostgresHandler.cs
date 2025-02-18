@@ -10,12 +10,12 @@ public class PostgresHandler(PostgresConnectionPool connectionPool) : IDatabaseH
         return await connectionPool.GetConnectionAsync();
     }
 
-    public async Task<bool> GameChosenInGallery(User user)
+    public async Task<bool> GameChosenInGallery(Guid userId)
     {
         using var connection = await GetConnectionAsync();
         var command = connection.CreateCommand();
         command.CommandText = "SELECT * FROM UserGaleryChosen WHERE UserId = @UserId";
-        command.Parameters.Add(new NpgsqlParameter("@UserId", user.Id));
+        command.Parameters.Add(new NpgsqlParameter("@UserId", userId));
 
         using var reader = await command.ExecuteReaderAsync();
         if (await reader.ReadAsync())

@@ -17,8 +17,8 @@ public class RecommendationRecieverController : Controller
     }
 
     [Authorize]
-    [HttpPost]
-    public async Task<IActionResult> GetRecommendations([FromBody] User user)
+    [HttpGet]
+    public async Task<IActionResult> GetRecommendations()
     {
         var userIdFromToken = User.FindFirstValue(System.Security.Claims.ClaimTypes.NameIdentifier);
         if (!Guid.TryParse(userIdFromToken, out Guid userId))
@@ -26,13 +26,9 @@ public class RecommendationRecieverController : Controller
             return BadRequest("Invalid user ID in token.");
         }
 
-        if (user.Id != userId)
-        {
-            return Forbid("You are not authorized to update this user.");
-        }
         try
         {
-            var result = await _dockerRunner.GetRecommendations(user.Id);
+            var result = await _dockerRunner.GetRecommendations(userId);
             return Ok(result);
         }
         catch (ArgumentException ex)
