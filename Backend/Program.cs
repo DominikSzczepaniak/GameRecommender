@@ -1,3 +1,4 @@
+using System.Runtime.InteropServices;
 using System.Text;
 using GameRecommender.Data;
 using GameRecommender.Controllers;
@@ -13,6 +14,12 @@ class Program
 {
     public static void Main()
     {
+        if (!RuntimeInformation.IsOSPlatform(OSPlatform.Linux) && !RuntimeInformation.IsOSPlatform(OSPlatform.Windows) &&
+            !RuntimeInformation.IsOSPlatform(OSPlatform.OSX))
+        {
+            Console.WriteLine("Not supported operating system");
+            return;
+        }
         var builder = WebApplication.CreateBuilder();
         //TODO load all game mappings (appId -> name)
 

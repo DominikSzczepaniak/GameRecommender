@@ -18,7 +18,7 @@ public class GameLibraryLoginController : Controller
 
     [Authorize]
     [HttpPost("{steamLink}")]
-    public async Task<IActionResult> GetSteamProfile([FromBody] User user, string steamLink)
+    public async Task<IActionResult> SetSteamProfile([FromBody] User user, string steamLink)
     {
         var userIdFromToken = User.FindFirstValue(System.Security.Claims.ClaimTypes.NameIdentifier);
         if (!Guid.TryParse(userIdFromToken, out Guid userId))
