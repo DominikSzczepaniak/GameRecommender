@@ -16,3 +16,10 @@ CREATE TABLE AppIdToName (
     AppId VARCHAR(64) PRIMARY KEY,
     Name VARCHAR(64) NOT NULL
 );
+
+CREATE TABLE UserGaleryChosen (
+    UserId UUID PRIMARY KEY,
+    Chosen BOOLEAN NOT NULL,
+    CONSTRAINT fk_UserGaleryChosen_User FOREIGN KEY (UserId)
+        REFERENCES Users(Id) ON DELETE CASCADE
+)

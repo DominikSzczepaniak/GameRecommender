@@ -1,8 +1,10 @@
 import { Button } from '@/components/ui/button';
 import { Card, CardHeader } from '@/components/ui/card';
 import { Skeleton } from '@/components/ui/skeleton';
+import { API_SERVER } from '@/settings';
 import { errorHandler } from '@/utilities/error';
 import React, { useEffect, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 
 interface GameGalleryProps {
   appIds: number[];
@@ -15,7 +17,8 @@ type GameDto = {
 };
 
 const GameGallery: React.FC<GameGalleryProps> = ({ appIds, maxSelections = 5 }) => {
-  //TODO if user already liked his games send him to main website
+  const navigate = useNavigate();
+  const [gamesChecked, setGamesChecked] = useState(false);
   const [gamePhotos, setGamePhotos] = useState<Record<number, string | null>>({});
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -32,7 +35,7 @@ const GameGallery: React.FC<GameGalleryProps> = ({ appIds, maxSelections = 5 }) 
       for(const game in selectedGames) {
         games.push({ AppId: game, Opinion: true });
       }
-      const response = await fetch('/api/submitGames', {
+      const response = await fetch(`${API_SERVER}/Game/addGame`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -73,6 +76,45 @@ const GameGallery: React.FC<GameGalleryProps> = ({ appIds, maxSelections = 5 }) 
   };
 
   const isSelected = (appId: number) => selectedGames.includes(appId);
+
+  useEffect(() => {
+    const gameChosen = async () => {
+      try {
+        const response = await fetch(`${API_SERVER}/User/gamesChosen`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authentication': `Bearer ${localStorage.getItem('token')}`,
+          },
+          body: JSON.stringify({
+            user: {
+              Id: localStorage.getItem('userId'),
+              Username: localStorage.getItem('username'),
+              Email: localStorage.getItem('email'),
+              Password: '',
+            },
+          }),
+        });
+
+        if (!response.ok) {
+          throw new Error('Request failed');
+        }
+
+        const data = await response.json();
+
+        if (data) {
+          navigate('/');
+        } else {
+          setGamesChecked(true);
+        }
+      } catch (error) {
+        console.error('Error choosing games:', error);
+        setGamesChecked(true);
+      }
+    };
+
+    gameChosen();
+  }, [navigate]);
 
   useEffect(() => {
     const fetchGamePhotos = async () => {
@@ -122,6 +164,14 @@ const GameGallery: React.FC<GameGalleryProps> = ({ appIds, maxSelections = 5 }) 
     return (
       <div className='text-center text-red-500'>
         {error}
+      </div>
+    );
+  }
+
+  if (!gamesChecked) {
+    return (
+      <div>
+        Loading...
       </div>
     );
   }

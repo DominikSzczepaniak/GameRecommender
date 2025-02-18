@@ -18,6 +18,11 @@ public class UserService : IUserService
         return await _databaseConnection.LoginByUsername(username, password);
     }
 
+    public async Task<bool> GamesChosenInGallery(User user)
+    {
+        return await _databaseConnection.GameChosenInGallery(user);
+    }
+
     public async Task RegisterUser(User user)
     {
         await _databaseConnection.RegisterUser(user);

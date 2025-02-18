@@ -5,6 +5,7 @@ namespace GameRecommender.Data;
 public interface IDatabaseHandler
 {
     public Task<User?> LoginByUsername(string username, string password);
+    public Task<bool> GameChosenInGallery(User user);
     public Task RegisterUser(User user);
     public Task<User> UpdateUser(User user);
     public Task<bool> DeleteUser(User user);

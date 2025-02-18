@@ -31,6 +31,35 @@ export function LoginRegisterForm({ className, isLogin, ...props }: FormProps) {
 
   const navigate = useNavigate();
 
+  const checkGamesChosen = async () => {
+    try {
+      const response = await fetch(`${API_SERVER}/User/gamesChosen`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authentication': `Bearer ${localStorage.getItem('token')}`,
+        },
+        body: JSON.stringify({
+          user: {
+            Id: localStorage.getItem('userId'),
+            Username: localStorage.getItem('username'),
+            Email: localStorage.getItem('email'),
+            Password: '',
+          },
+        }),
+      });
+
+      if (!response.ok) {
+        throw new Error('Request failed');
+      }
+
+      const data = await response.json();
+      return data;
+    } catch (error) {
+      console.error('Error choosing games:', error);
+    }
+  };
+
   const handleLogin = async (username: string, password: string) => {
     try {
       const response = await fetch(`${API_SERVER}/User/login`, {
@@ -51,7 +80,12 @@ export function LoginRegisterForm({ className, isLogin, ...props }: FormProps) {
       await localStorage.setItem('username', data.user['username']);
       await localStorage.setItem('email', data.user['email']);
       login();
-      return data.token;
+      setMessage('');
+      if (await checkGamesChosen()) {
+        return navigate('/gamesGallery');
+      } else {
+        return navigate('/');
+      }
     } catch (error) {
       console.error('Error:', error);
       return null;
@@ -86,14 +120,11 @@ export function LoginRegisterForm({ className, isLogin, ...props }: FormProps) {
       setMessage('Wrong email format! Follow: example@gmail.com');
     } else {
       if (isLogin) {
-        if (handleLogin(username, password) != null) {
-          setMessage('');
-          navigate('/');
-        }
+        handleLogin(username, password);
       } else {
         handleRegister(username, email, password);
         setMessage('');
-        navigate('/');
+        navigate('/login');
       }
     }
   };
