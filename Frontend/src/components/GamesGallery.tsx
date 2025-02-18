@@ -1,13 +1,14 @@
 import { Button } from '@/components/ui/button';
 import { Card, CardHeader } from '@/components/ui/card';
 import { Skeleton } from '@/components/ui/skeleton';
+import { getGamePhoto } from '@/helpers/gamePhotos';
 import { API_SERVER } from '@/settings';
 import { errorHandler } from '@/utilities/error';
 import React, { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 
 interface GameGalleryProps {
-  appIds: number[];
+  appIds: string[];
   maxSelections?: number;
 }
 
@@ -19,15 +20,11 @@ type GameDto = {
 const GameGallery: React.FC<GameGalleryProps> = ({ appIds, maxSelections = 5 }) => {
   const navigate = useNavigate();
   const [gamesChecked, setGamesChecked] = useState(false);
-  const [gamePhotos, setGamePhotos] = useState<Record<number, string | null>>({});
+  const [gamePhotos, setGamePhotos] = useState<Record<string, string | null>>({});
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [selectedGames, setSelectedGames] = useState<number[]>([]);
+  const [selectedGames, setSelectedGames] = useState<string[]>([]);
   const [selectionLimitReached, setSelectionLimitReached] = useState(false);
-
-  const getGamePhoto = (appId: number): string => {
-    return `https://shared.fastly.steamstatic.com/store_item_assets/steam/apps/${appId}/header.jpg`;
-  };
 
   const handleProceed = async () => {
     try {
@@ -64,7 +61,7 @@ const GameGallery: React.FC<GameGalleryProps> = ({ appIds, maxSelections = 5 }) 
     }
   };
 
-  const handleGameClick = (appId: number) => {
+  const handleGameClick = (appId: string) => {
     if (selectedGames.includes(appId)) {
       setSelectedGames(selectedGames.filter((id) => id !== appId));
       setSelectionLimitReached(false);
@@ -75,7 +72,7 @@ const GameGallery: React.FC<GameGalleryProps> = ({ appIds, maxSelections = 5 }) 
     }
   };
 
-  const isSelected = (appId: number) => selectedGames.includes(appId);
+  const isSelected = (appId: string) => selectedGames.includes(appId);
 
   useEffect(() => {
     const gameChosen = async () => {
@@ -130,7 +127,7 @@ const GameGallery: React.FC<GameGalleryProps> = ({ appIds, maxSelections = 5 }) 
         });
 
         const results = await Promise.all(promises);
-        const photos: Record<number, string | null> = {};
+        const photos: Record<string, string | null> = {};
         results.forEach(({ appId, imageUrl }) => {
           photos[appId] = imageUrl;
         });

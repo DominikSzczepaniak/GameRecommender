@@ -1,11 +1,11 @@
 import { ThemeProvider } from '@/components/theme-provider';
+import { AuthProvider } from '@/context/AuthProvider';
 import { Home } from 'lucide-react';
 import { Settings } from 'lucide-react';
 import { Route, Routes } from 'react-router-dom';
 import Navbar from './components/Navbar';
 import Login from './pages/Login';
 import Register from './pages/Register';
-import { AuthProvider } from '@/context/AuthProvider';
 
 function App() {
   return (

@@ -18,7 +18,7 @@ public class RecommendationRecieverController : Controller
 
     [Authorize]
     [HttpPost]
-    public async Task<IActionResult> GetRecommendations([FromBody] User user, int engineNumber)
+    public async Task<IActionResult> GetRecommendations([FromBody] User user)
     {
         var userIdFromToken = User.FindFirstValue(System.Security.Claims.ClaimTypes.NameIdentifier);
         if (!Guid.TryParse(userIdFromToken, out Guid userId))
@@ -32,7 +32,7 @@ public class RecommendationRecieverController : Controller
         }
         try
         {
-            var result = await _dockerRunner.GetRecommendations(user.Id, engineNumber);
+            var result = await _dockerRunner.GetRecommendations(user.Id);
             return Ok(result);
         }
         catch (ArgumentException ex)

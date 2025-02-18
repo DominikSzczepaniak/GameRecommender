@@ -1,16 +1,9 @@
+import { getGamePhoto } from '@/helpers/gamePhotos';
 import { getLanguageFile } from '@/helpers/language';
+import { GameData } from '@/models/Game';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from './ui/card';
 
-export interface GameCardProps {
-  imagePath: string;
-  title: string;
-  description: string;
-  price: string;
-  publisher: string;
-  releaseDate: string;
-}
-
-export const GameCard = (props: GameCardProps) => {
+export const GameCard = (props: GameData) => {
   const translations = getLanguageFile();
   return (
     <>
@@ -24,7 +17,7 @@ export const GameCard = (props: GameCardProps) => {
           </CardDescription>
         </CardHeader>
         <CardContent>
-          <img src={props.imagePath} alt={props.title} />
+          {getGamePhoto(props.appId)}
           <p>
             {translations.gameCard.description}: {props.description}
           </p>

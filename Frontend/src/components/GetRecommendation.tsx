@@ -1,57 +1,56 @@
 import { getLanguageFile } from '@/helpers/language';
 import React from 'react';
-import { GameCard, GameCardProps } from './GameCard';
+import { GameCard } from './GameCard';
 import { Button } from './ui/button';
 import { Card, CardContent, CardFooter } from './ui/card';
 import { Select, SelectContent, SelectTrigger, SelectValue } from './ui/select';
+import { GameData } from '@/models/Game';
 
 interface GetRecommendationProps {
   recommendationEngines: {
     name: string,
-    likeFunction: (recommendationNumber: number) => void,
-    dislikeFunction: (recommendationNumber: number) => void,
-    askForRecommendations: (userID: number) => GameCardProps[],
+    likeFunction: (appId: string) => void,
+    dislikeFunction: (appId: string) => void,
+    askForRecommendations: () => Promise<GameData[]>,
   }[];
-  userID: number;
 }
 
 export const GetRecommendation = (props: GetRecommendationProps) => { //TODO: CSS
   const [visibleRecommendations, setVisibleRecommendations] = React.useState(false);
   const [chosenRecommendationEngine, setChosenRecommendationEngine] = React.useState(-5);
-  const [recommendations, setRecommendations] = React.useState<GameCardProps[] | null>(null);
-  const userID = props.userID;
+  const [recommendations, setRecommendations] = React.useState<GameData[]>([]);
 
   const translations = getLanguageFile();
 
-  const askForRecommendations = () => {
-    setRecommendations(props.recommendationEngines[chosenRecommendationEngine].askForRecommendations(userID));
+  const askForRecommendations = async () => {
+    setRecommendations(await props.recommendationEngines[chosenRecommendationEngine].askForRecommendations());
     setVisibleRecommendations(true);
   };
 
-  const recommendationLike = (recommendationNumber: number) => {
-    props.recommendationEngines[chosenRecommendationEngine].likeFunction(recommendationNumber);
+  const recommendationLike = (appId: string) => {
+    props.recommendationEngines[chosenRecommendationEngine].likeFunction(appId);
   };
 
-  const recommendationDislike = (recommendationNumber: number) => {
-    props.recommendationEngines[chosenRecommendationEngine].dislikeFunction(recommendationNumber);
+  const recommendationDislike = (appId: string) => {
+    props.recommendationEngines[chosenRecommendationEngine].dislikeFunction(appId);
   };
 
   return (
     <div className='flex justify-center items-center'>
       {(visibleRecommendations && recommendations !== null)
         ? (
-          recommendations.map((recommendation, index) => {
+          recommendations.slice(0,5).map((recommendation) => {
             return (
               <Card>
                 <CardContent>
-                  <GameCard {...recommendation as GameCardProps}>
+                  <GameCard {...recommendation}>
                   </GameCard>
                 </CardContent>
                 <CardFooter>
-                  <button onClick={() => recommendationDislike(index)}>
+                  <button onClick={() => recommendationDislike(recommendation.appId)}>
                     Dislike
                   </button>
-                  <button onClick={() => recommendationLike(index)}>
+                  <button onClick={() => recommendationLike(recommendation.appId)}>
                     Like
                   </button>
                 </CardFooter>
