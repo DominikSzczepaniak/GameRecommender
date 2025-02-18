@@ -19,7 +19,7 @@ if __name__ == "__main__":
 
     sys.path.append("../")
 
-    from other_models.metrics import *
+    from metrics import *
 
     stats = []
     for _ in range(10):
