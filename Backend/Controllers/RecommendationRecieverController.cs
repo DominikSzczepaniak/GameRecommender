@@ -17,8 +17,8 @@ public class RecommendationRecieverController : Controller
     }
 
     [Authorize]
-    [HttpGet]
-    public async Task<IActionResult> GetRecommendations()
+    [HttpGet("{engineNumber}/{numberOfRecommendations}")]
+    public async Task<IActionResult> GetRecommendations(int engineNumber, int numberOfRecommendations)
     {
         var userIdFromToken = User.FindFirstValue(System.Security.Claims.ClaimTypes.NameIdentifier);
         if (!Guid.TryParse(userIdFromToken, out Guid userId))
@@ -28,7 +28,8 @@ public class RecommendationRecieverController : Controller
 
         try
         {
-            var result = await _dockerRunner.GetRecommendations(userId);
+            //move it to the service and there count how many recommendaitons has been made and run LearnUser() func
+            var result = await _dockerRunner.GetRecommendations(userId, engineNumber, numberOfRecommendations);
             return Ok(result);
         }
         catch (ArgumentException ex)

@@ -1,5 +1,6 @@
 using System.Runtime.InteropServices;
 using GameRecommender.Interfaces;
+using GameRecommender.Models;
 
 namespace GameRecommender.Services;
 using Docker.DotNet;
@@ -10,9 +11,15 @@ using System.Threading.Tasks;
 public class DockerService : IDockerRunner
 {
     private readonly DockerClient _dockerClient;
-
-    public DockerService()
+    private readonly IRecommenderApiService _recommenderApiService;
+    private readonly Dictionary<int, string> _engineNumberToImageName = new Dictionary<int, string>
     {
+        { 1, "lightFM" }
+    };
+
+    public DockerService(IRecommenderApiService recommenderApiService)
+    {
+        _recommenderApiService = recommenderApiService;
         if (RuntimeInformation.IsOSPlatform(OSPlatform.Windows))
         {
             _dockerClient = new DockerClientConfiguration(new Uri("npipe://./pipe/docker_engine"))
@@ -43,13 +50,32 @@ public class DockerService : IDockerRunner
         return ($"http://localhost:{freePort}", response.ID);
     }
 
-    public async Task StopContainer(string containerId)
+    public Task StopContainer(string containerId)
     {
-        await _dockerClient.Containers.StopContainerAsync(containerId, new ContainerStopParameters());
+        return _dockerClient.Containers.StopContainerAsync(containerId, new ContainerStopParameters());
     }
 
-    public async Task<List<string>> GetRecommendations(Guid userId)
+    public async Task<List<string>> GetRecommendations(Guid userId, int numberOfRecommendations, int engineNumber)
     {
-        return new List<string>();
+        if (!_engineNumberToImageName.ContainsKey(engineNumber))
+        {
+            throw new ArgumentException("No such engine");
+        }
+        var (host, containerId) = await StartContainerWithFreePort(_engineNumberToImageName[engineNumber]);
+        var result = await _recommenderApiService.GetGameList(userId, numberOfRecommendations, host);
+        StopContainer(containerId);
+        return result;
+    }
+
+    public async Task<bool> LearnUser(List<UserGameDao> games, int engineNumber)
+    {
+        if (!_engineNumberToImageName.ContainsKey(engineNumber))
+        {
+            throw new ArgumentException("No such engine");
+        }
+        var (host, containerId) = await StartContainerWithFreePort(_engineNumberToImageName[engineNumber]);
+        var result = await _recommenderApiService.LearnUser(games, host);
+        StopContainer(containerId);
+        return result;
     }
 }

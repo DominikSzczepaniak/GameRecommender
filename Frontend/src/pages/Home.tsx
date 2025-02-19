@@ -4,6 +4,8 @@ import { RecommendationEngine } from '@/models/RecommendationEngine';
 import { API_SERVER } from '@/settings';
 
 const Home = () => {
+  const NUMBER_OF_RECOMMENDATIONS = 5;
+
   const sendOpinion = async (appId: string, opinion: boolean) => {
     const response = await fetch(`${API_SERVER}/Game/addOpinion`, {
       method: 'POST',
@@ -42,7 +44,7 @@ const Home = () => {
     likeFunction: handleLike,
     dislikeFunction: handleDislike,
     askForRecommendations: async (): Promise<GameData[]> => {
-      const response = await fetch(`${API_SERVER}/recommendations/1`, {
+      const response = await fetch(`${API_SERVER}/recommendations/1/${NUMBER_OF_RECOMMENDATIONS}`, {
         method: 'GET',
         headers: {
           'Content-Type': 'applications/json',

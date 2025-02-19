@@ -1,3 +1,10 @@
+Installation
+
+1. Make sure you have Docker installed
+2. 
+
+
+
 We have two cases:
 1. User registers and creates new account. In this case we need to
 a) push user data into database

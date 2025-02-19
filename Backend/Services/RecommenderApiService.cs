@@ -17,7 +17,7 @@ public class RecommenderApiService : IRecommenderApiService
         _databaseHandler = databaseHandler;
     }
 
-    public async Task<List<string>> GetGameList(string userId, int k, string host)
+    public async Task<List<string>> GetGameList(Guid userId, int k, string host)
     {
         var requestData = new { userId, k };
         var jsonContent = new StringContent(JsonSerializer.Serialize(requestData), Encoding.UTF8, "application/json");

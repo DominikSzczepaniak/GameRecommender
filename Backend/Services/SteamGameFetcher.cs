@@ -9,7 +9,7 @@ using System.Text.RegularExpressions;
 
 namespace GameRecommender.Services;
 
-public class SteamGameFetcher
+public static class SteamGameFetcher
 {
     private static async Task<string> GetXmlDataAsync(string link)
     {

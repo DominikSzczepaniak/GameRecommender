@@ -26,18 +26,21 @@ class Program
         // -------------
         // Database settings
         var connectionString = builder.Configuration.GetSection("ConnectionString").Get<String>();
+        if (connectionString == null)
+        {
+            throw new SystemException("ConnectionString not set");
+        }
         var maxPoolSize = 10;
-        //
 
         // ------------
         //Dependency injection
-        builder.Services.AddSingleton(new PostgresConnectionPool(connectionString, maxPoolSize));
+        builder.Services.AddSingleton(new PostgresConnectionPool(connectionString!, maxPoolSize));
         builder.Services.AddScoped<IDatabaseHandler, PostgresHandler>();
+        builder.Services.AddScoped<IRecommenderApiService, RecommenderApiService>();
+        builder.Services.AddScoped<IDockerRunner, DockerService>();
         builder.Services.AddScoped<IUserService, UserService>();
         builder.Services.AddScoped<IGameLibrary, GameLibraryService>();
         builder.Services.AddScoped<IGameService, GameService>();
-        // builder.Services.AddScoped<UserController>();
-
         // ------------
 
         // JWT

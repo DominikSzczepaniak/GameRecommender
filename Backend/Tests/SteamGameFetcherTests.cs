@@ -7,8 +7,6 @@ namespace GameRecommender.Tests;
 [TestFixture]
 public class SteamGameFetcherTests
 {
-    private SteamGameFetcher _steamGameFetcher;
-
     [SetUp]
     public void Setup()
     {
