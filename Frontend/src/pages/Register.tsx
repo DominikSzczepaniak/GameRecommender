@@ -1,4 +1,4 @@
-import { LoginRegisterForm } from '@/components/ui/form'
+import { LoginRegisterForm } from '@/components/LoginRegisterForm';
 
 const Register = () => {
   return (
@@ -7,7 +7,7 @@ const Register = () => {
         <LoginRegisterForm isLogin={false} />
       </div>
     </div>
-  )
-}
+  );
+};
 
-export default Register
+export default Register;
