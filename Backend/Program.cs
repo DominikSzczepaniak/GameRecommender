@@ -4,6 +4,7 @@ using GameRecommender.Data;
 using GameRecommender.Controllers;
 using GameRecommender.Data;
 using GameRecommender.Interfaces;
+using GameRecommender.Interfaces.Data;
 using GameRecommender.Services;
 using GameRecommender.Tests;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
@@ -34,8 +35,14 @@ class Program
 
         // ------------
         //Dependency injection
+        //Database
         builder.Services.AddSingleton(new PostgresConnectionPool(connectionString!, maxPoolSize));
-        builder.Services.AddScoped<IDatabaseHandler, PostgresHandler>();
+        builder.Services.AddScoped<IAppIdMappingHandler, PostgresAppIdMappingHandler>();
+        builder.Services.AddScoped<IGameGalleryHandler, PostgresGameGalleryHandler>();
+        builder.Services.AddScoped<IGameLibraryHandler, PostgresGameLibraryHandler>();
+        builder.Services.AddScoped<ISteamProfileHandler, PostgresSteamProfileHandler>();
+        builder.Services.AddScoped<IUserHandler, PostgresUserHandler>();
+        //Services
         builder.Services.AddScoped<IRecommenderApiService, RecommenderApiService>();
         builder.Services.AddScoped<IDockerRunner, DockerService>();
         builder.Services.AddScoped<IUserService, UserService>();

@@ -9,12 +9,10 @@ namespace GameRecommender.Services;
 public class RecommenderApiService : IRecommenderApiService
 {
     private readonly HttpClient _httpClient;
-    private readonly IDatabaseHandler _databaseHandler;
 
-    public RecommenderApiService(HttpClient httpClient, IDatabaseHandler databaseHandler)
+    public RecommenderApiService(HttpClient httpClient)
     {
         _httpClient = httpClient;
-        _databaseHandler = databaseHandler;
     }
 
     public async Task<List<string>> GetGameList(Guid userId, int k, string host)
