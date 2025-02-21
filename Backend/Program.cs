@@ -43,6 +43,7 @@ class Program
         builder.Services.AddScoped<ISteamProfileHandler, PostgresSteamProfileHandler>();
         builder.Services.AddScoped<IUserHandler, PostgresUserHandler>();
         //Services
+        builder.Services.AddScoped<HttpClient>();
         builder.Services.AddScoped<IRecommenderApiService, RecommenderApiService>();
         builder.Services.AddScoped<IDockerRunner, DockerService>();
         builder.Services.AddScoped<IUserService, UserService>();
